@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Build
+dist/
+build/
+
+# Virtualenv
+.venv/
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+.ty_cache/
+.mypy_cache/
+
+# Local-only release helper
+/release.sh
