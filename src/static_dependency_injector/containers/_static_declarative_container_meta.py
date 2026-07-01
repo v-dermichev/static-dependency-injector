@@ -10,9 +10,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+
+class UnannotatedProviderWarning(UserWarning):
+    """A provider was declared without a type annotation, so typed overrides
+    (``set_overrides``) cannot recognise it. Annotate it (``name: Type = ...``)
+    or filter this category to silence it."""
+
+
 if TYPE_CHECKING:
     StaticDeclarativeContainerMeta = type
 else:
+    import warnings
+
     from dependency_injector import containers, providers
 
     class _OverrideHandle:
@@ -33,6 +42,25 @@ else:
                     provider.reset_last_overriding()
 
     class StaticDeclarativeContainerMeta(containers.DeclarativeContainerMetaClass):
+        def __init__(cls, *args: Any, **kwargs: Any) -> None:  # noqa: N805
+            super().__init__(*args, **kwargs)
+            # A provider needs an annotation somewhere in the MRO to be a typed
+            # field (dataclass_transform aggregates fields across bases, like a
+            # dataclass); otherwise set_overrides can't see it. Warn per own
+            # provider that is annotated nowhere in the hierarchy.
+            annotated: set[str] = set()
+            for klass in cls.__mro__:
+                annotated.update(vars(klass).get("__annotations__", {}))
+            for name in cls.cls_providers:
+                if name not in annotated:
+                    warnings.warn(
+                        f"{cls.__name__}.{name} is a provider without a type "
+                        f"annotation; typed overrides (set_overrides) won't "
+                        f"recognise it. Declare it as `{name}: <Type> = ...`.",
+                        UnannotatedProviderWarning,
+                        stacklevel=2,
+                    )
+
         def __call__(cls, **overrides: Any) -> _OverrideHandle:  # noqa: N805
             for name, value in overrides.items():
                 if name not in cls.providers:

@@ -145,8 +145,14 @@ Reads resolve to the field's type, and `set_overrides` is fully checked under
 **ty**, **mypy** and **pyright** (Pylance) — unknown provider names and wrong
 value types are compile-time errors, verified by a test matrix that runs all
 three. This requires an **annotation** on each provider (`db: Db = Singleton(Db)`)
-so the checker knows the field type. Direct attribute assignment
-(`Services.db = …`) is rejected at runtime — use `set_overrides`.
+so the checker knows the field type — like a dataclass or a Pydantic model,
+annotations are also inherited, so a subclass sees its bases' fields (and reads /
+overrides them with the right types). A provider declared **without** an
+annotation still resolves at runtime, but is invisible to `set_overrides`; to
+catch that, an `UnannotatedProviderWarning` is emitted at class-creation naming
+the provider (filter or escalate it via the standard `warnings` machinery).
+Direct attribute assignment (`Services.db = …`) is rejected at runtime — use
+`set_overrides`.
 
 ## Compatibility with `dependency-injector`
 

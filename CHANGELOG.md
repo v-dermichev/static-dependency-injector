@@ -17,6 +17,10 @@ include breaking changes.
 - `override()` now also records dependency_injector's container-level overriding
   state, so the inherited `reset_last_overriding()` works and `overridden` is
   populated (previously our override was per-provider only).
+- `UnannotatedProviderWarning` — emitted at class creation for a provider
+  declared without a type annotation (which typed `set_overrides` can't see).
+  Annotations are inherited across the MRO, so redeclaring an already-annotated
+  provider in a subclass does not warn.
 
 ### Deprecated
 - `init_resources()` / `shutdown_resources()` — instance-level in
