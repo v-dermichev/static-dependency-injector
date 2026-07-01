@@ -1,6 +1,6 @@
-"""Tests for test-scoped DI: ``TestContextSingleton`` is reset at the test
-boundary via ``reset_test_context`` (a plain ``Singleton`` survives), the call is
-reachable from the container / base / metaclass, plus the bundled pytest plugin."""
+"""Test-scoped DI: ``TestContextSingleton`` is reset by ``reset_test_context``
+(a plain ``Singleton`` survives), reachable from container / base / metaclass,
+plus the bundled plugin's teardown hook."""
 from __future__ import annotations
 
 import itertools
@@ -31,16 +31,15 @@ class TestResetBehaviour:
             single = sp.Singleton(lambda: next(counter))
 
         scoped0, single0 = C.scoped, C.single
-        assert C.scoped == scoped0  # stable within a test
+        assert C.scoped == scoped0
         StaticDeclarativeContainerMeta.reset_test_context()
         assert C.scoped != scoped0  # reset -> fresh
-        assert C.single == single0  # the singleton survives the reset
+        assert C.single == single0  # singleton survives
 
     def test_reset_safe_when_provider_never_built(self) -> None:
         class C(StaticDeclarativeContainer):
             scoped = sp.TestContextSingleton(object)
 
-        # Never accessed C.scoped - reset must not fail.
         StaticDeclarativeContainerMeta.reset_test_context()
 
     def test_reset_spans_multiple_containers(self) -> None:
@@ -76,7 +75,7 @@ class TestResetEntryPoints:
         assert C.scoped is not first
 
 
-class TestPluginIntegration:
+class TestPluginTeardownHook:
     def test_teardown_hook_resets_test_scoped(self) -> None:
         counter = itertools.count()
 
@@ -85,5 +84,5 @@ class TestPluginIntegration:
 
         first = C.scoped
         item = type("_Item", (), {})()  # bare pytest Item stand-in
-        _pytest_plugin.pytest_runtest_teardown(item)  # plugin calls reset_test_context
+        _pytest_plugin.pytest_runtest_teardown(item)
         assert C.scoped != first

@@ -18,6 +18,12 @@ else:
     )
 
 
+class _ResolvedProperty(property):
+    """Marker ``property`` subclass: lets a container's provider attributes be
+    told apart from any other properties on the metaclass MRO (e.g. those of
+    ``dependency_injector``)."""
+
+
 class StaticDeclarativeContainerMeta(_DeclarativeContainerMeta):
     """Lifts declared providers onto a per-class metaclass as resolved
     properties, and registers them under the container's ``name``.
@@ -27,7 +33,7 @@ class StaticDeclarativeContainerMeta(_DeclarativeContainerMeta):
     _REGISTRY_LOCK: ClassVar[threading.RLock] = threading.RLock()
 
     @staticmethod
-    def _resolved_property(name: str, attr: str) -> property:
+    def _resolved_property(name: str, attr: str) -> _ResolvedProperty:
         """Build a class property that resolves provider ``name``/``attr`` lazily."""
         registry = StaticDeclarativeContainerMeta._REGISTRY
 
@@ -44,7 +50,7 @@ class StaticDeclarativeContainerMeta(_DeclarativeContainerMeta):
         def fdel(_cls: Any) -> None:
             registry[name][attr].reset_override()
 
-        return property(fget, fset, fdel)
+        return _ResolvedProperty(fget, fset, fdel)
 
     def __new__(
         mcs,

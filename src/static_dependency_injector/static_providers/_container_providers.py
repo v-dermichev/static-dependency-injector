@@ -10,9 +10,10 @@ class _ContainerProvider[T](providers.Provider[T]):
     """Descriptor mixin for static-container providers.
 
     Reading a container attribute resolves the dependency (``__get__`` ->
-    ``self()``); assigning overrides it (``__set__`` -> ``override``); ``del``
-    resets the override. ``on_set`` registers a hook run over the value before
-    overriding. ``[T]`` is the resolved dependency type.
+    ``self()``), typed as ``T``. Overriding is done through the container's
+    ``set_overrides`` / ``clear_overrides``; direct attribute assignment is
+    intentionally not part of the typed API. ``on_set`` registers a hook run
+    over the value before an override is applied.
     """
 
     _static_di_on_set: OnSetHook | None = None
@@ -23,12 +24,6 @@ class _ContainerProvider[T](providers.Provider[T]):
 
     def __get__(self, _: Any, __: Any = None) -> T:
         return self()
-
-    def __set__(self, _: Any, value: T) -> None:
-        self.override(providers.Object(value))
-
-    def __delete__(self, _: Any) -> None:
-        self.reset_override()
 
 
 # --- Instance factories --------------------------------------------------

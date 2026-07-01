@@ -1,6 +1,6 @@
-"""Unit tests for the container metaclass: lifting providers to resolved
-properties, registration under a name, shared-by-name (first-writer-wins),
-inheritance, and that non-provider attributes are left untouched."""
+"""Container metaclass: lifting providers to resolved properties, registration
+under a name, shared-by-name (first-writer-wins), inheritance, and that
+non-provider attributes are left untouched."""
 from __future__ import annotations
 
 from static_dependency_injector import static_providers as sp
@@ -30,6 +30,14 @@ class TestProviderLifting:
         assert C.CONST == 123
         assert C.helper() == "ok"
         assert C.val == 1
+
+    def test_provider_names_reports_declared_providers(self) -> None:
+        class C(StaticDeclarativeContainer):
+            a = sp.Object(1)
+            b = sp.Singleton(object)
+            CONST = 9
+
+        assert C._provider_names() == frozenset({"a", "b"})
 
 
 class TestRegistration:
@@ -63,7 +71,7 @@ class TestSharedByName:
         assert C1.val == "first"
         assert C2.val == "first"
 
-    def test_override_via_one_is_visible_through_other(self) -> None:
+    def test_override_under_a_name_is_visible_through_every_class(self) -> None:
         class C1(StaticDeclarativeContainer):
             container_config = {"name": "shared.ovr"}
             val = sp.Object("orig")
@@ -72,9 +80,9 @@ class TestSharedByName:
             container_config = {"name": "shared.ovr"}
             val = sp.Object("ignored")
 
-        C1.val = "changed"  # ty:ignore[invalid-assignment] - override via __set__
+        C1.set_overrides(val="changed")
         assert C2.val == "changed"  # shared binding under the name
-        del C1.val
+        C1.clear_overrides("val")
         assert C2.val == "orig"
 
 
@@ -88,4 +96,4 @@ class TestInheritance:
             pass
 
         assert Child.val == "parent-val"
-
+        assert "val" in Child._provider_names()

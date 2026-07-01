@@ -28,4 +28,3 @@ def _isolated_registry() -> Iterator[None]:
     finally:
         reg.clear()
         reg.update(saved)
-
