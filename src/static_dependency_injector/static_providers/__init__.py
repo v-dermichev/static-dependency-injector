@@ -1,5 +1,6 @@
 from static_dependency_injector.static_providers._container_providers import (
     Callable,
+    Container,
     ContextLocalSingleton,
     Coroutine,
     Dependency,
@@ -16,6 +17,7 @@ from static_dependency_injector.static_providers._container_providers import (
 
 __all__ = [
     "Callable",
+    "Container",
     "ContextLocalSingleton",
     "Coroutine",
     "Dependency",
@@ -29,4 +31,3 @@ __all__ = [
     "ThreadLocalSingleton",
     "ThreadSafeSingleton",
 ]
-

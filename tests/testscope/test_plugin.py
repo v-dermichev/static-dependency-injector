@@ -1,5 +1,5 @@
-"""End-to-end: the bundled plugin auto-registers (via its ``pytest11`` entry
-point) and resets ``TestContextSingleton`` between tests with no manual wiring."""
+"""End-to-end: the bundled plugin auto-registers (``pytest11`` entry point) and
+resets ``TestContextSingleton`` between tests with no manual wiring."""
 from __future__ import annotations
 
 import pytest
@@ -18,7 +18,7 @@ class TestPluginAutoRegistration:
 
 
             class Services(StaticDeclarativeContainer):
-                scoped = sp.TestContextSingleton(lambda: next(_counter))
+                scoped: int = sp.TestContextSingleton(lambda: next(_counter))
 
 
             _seen = []
@@ -26,7 +26,7 @@ class TestPluginAutoRegistration:
 
             def test_first():
                 v = Services.scoped
-                assert Services.scoped == v   # stable within a test
+                assert Services.scoped == v
                 _seen.append(v)
 
 

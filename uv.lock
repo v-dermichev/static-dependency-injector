@@ -298,11 +298,12 @@ wheels = [
 
 [[package]]
 name = "static-dependency-injector"
-version = "0.2.0"
+version = "0.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "dependency-injector" },
     { name = "ty" },
+    { name = "typing-extensions" },
 ]
 
 [package.dev-dependencies]
@@ -318,6 +319,7 @@ dev = [
 requires-dist = [
     { name = "dependency-injector", specifier = ">=4.49.1" },
     { name = "ty", specifier = ">=0.0.55" },
+    { name = "typing-extensions", specifier = ">=4.12" },
 ]
 
 [package.metadata.requires-dev]

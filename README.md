@@ -7,8 +7,10 @@
 Static, lazily-resolved declarative DI containers built on top of
 [`dependency-injector`](https://github.com/ets-labs/python-dependency-injector).
 
-Declare providers as class attributes and read them back as resolved **values**
-straight from the container class — no instance, no `()` call:
+Declare providers as annotated class attributes and read them back as resolved
+**values** straight from the container class — no instance, no `()` call.
+Overrides are **fully type-checked**: the provider names and value types are
+verified (and autocompleted) by ty, mypy and pyright.
 
 ```python
 from static_dependency_injector import static_providers as sp
@@ -16,13 +18,18 @@ from static_dependency_injector.containers import StaticDeclarativeContainer
 
 
 class Services(StaticDeclarativeContainer):
-    config = sp.Singleton(load_config)
-    db = sp.Singleton(Database, config=config)
+    config: Config = sp.Singleton(load_config)
+    db: Database = sp.Singleton(Database, config=config)
 
 
-db = Services.db                       # resolved Database instance (lazy, cached)
-Services.set_overrides(db=fake_db)     # override (e.g. in a test)
-Services.clear_overrides("db")         # clear it (or clear_overrides() for all)
+db = Services.db                                # resolved Database (lazy, cached)
+
+with Services.set_overrides(db=fake_db):        # scoped — auto-restored on exit
+    ...
+Services.set_overrides(db=fake_db)              # or permanent
+
+Services.set_overrides(dbb=fake_db)             # ❌ unknown provider (type error)
+Services.set_overrides(db=123)                  # ❌ wrong value type (type error)
 ```
 
 Providers stay lazy: the underlying callables are not invoked until first access,
@@ -40,12 +47,14 @@ uv add static-dependency-injector
 
 - **Read providers as values** — `Services.db` returns the resolved instance, no
   `()` call and no container instance.
-- **Fully typed** — reads resolve to the dependency's type, and the override API
-  is clean under ty, mypy and pyright (Pylance).
+- **Fully typed** — reads resolve to the dependency's type, and `set_overrides`
+  checks provider names *and* value types under ty, mypy and pyright (Pylance),
+  with autocompletion on the real fields.
 - **Lazy & cached** — keeps `dependency-injector`'s resolution and per-provider
   caching semantics; nothing is built until first access.
-- **Test-friendly** — `set_overrides` / `clear_overrides` for per-test overrides,
-  plus `TestContextSingleton` auto-reset via a bundled pytest plugin.
+- **Test-friendly** — `set_overrides` (scoped context manager or permanent) for
+  per-test overrides, plus `TestContextSingleton` auto-reset via a bundled
+  pytest plugin.
 - **Thin** — a typed wrapper over `dependency-injector`; no vendoring, no magic
   beyond the container metaclass.
 
@@ -55,45 +64,127 @@ Typed wrappers over `dependency-injector` providers (`static_providers`):
 
 `Factory`, `Singleton`, `ThreadSafeSingleton`, `ThreadLocalSingleton`,
 `ContextLocalSingleton`, `Callable`, `Coroutine`, `Object`, `Resource`,
-`Dependency`, `Selector`, `Provider`, and the test-scoped `TestContextSingleton`.
+`Dependency`, `Selector`, `Provider`, `Container` (nested container), and the
+test-scoped `TestContextSingleton`.
 
 Each is generic in its resolved type, so `Services.db` reads back as the
 dependency's type.
 
+## Nested containers
+
+Nest a static container with `Container`; reads chain through it, and overriding
+the sub-container flows through:
+
+```python
+class Inner(StaticDeclarativeContainer):
+    db: Database = sp.Singleton(Database)
+
+class Outer(StaticDeclarativeContainer):
+    inner: type[Inner] = sp.Container(Inner)
+
+db = Outer.inner.db                 # resolved Database (typed)
+with Inner.set_overrides(db=fake):  # reflected through Outer.inner.db
+    ...
+```
+
 ## Test-scoped providers
 
-`TestContextSingleton` is reset automatically after every test by the bundled
-pytest plugin (auto-registered on install) — no manual `reset()` in teardown:
+`TestContextSingleton` holds a value for the duration of one test and is reset
+between tests. Reset is driven by an explicit hook, per test framework:
+
+**Run under pytest** — auto-cleaned. The bundled plugin (auto-registered on
+install) calls `reset_test_context()` after every test; nothing to wire up. This
+covers `unittest.TestCase` tests too, since pytest can run them — if your test
+runner is `pytest`, you get auto-clean regardless of how the tests are written:
 
 ```python
 class Services(StaticDeclarativeContainer):
-    driver = sp.TestContextSingleton(make_driver)
+    driver: Driver = sp.TestContextSingleton(make_driver)
 
 # after each test the plugin calls Services.reset_test_context() for you
 ```
 
-You can also reset manually: `Services.reset_test_context()`.
+**Run under the stock `unittest` runner** (`python -m unittest`) — there is no
+plugin auto-discovery outside pytest, so register the reset yourself with
+`addCleanup`:
+
+```python
+class Test(unittest.TestCase):
+    def setUp(self) -> None:
+        self.addCleanup(Services.reset_test_context)
+```
+
+You can also reset manually anywhere: `Services.reset_test_context()`.
+
+## Subclassing & whole-container override
+
+Subclass a container to inherit its providers, and redeclare any to replace them:
+
+```python
+class Base(StaticDeclarativeContainer):
+    db: Database = sp.Singleton(Database)
+
+class Testing(Base):
+    db: Database = sp.Singleton(FakeDatabase)   # replaces Base.db for Testing
+    extra: Clock = sp.Singleton(Clock)          # adds a provider
+
+Testing.set_overrides(db=other, extra=frozen)   # typed over inherited + own
+```
+
+Override a whole container's providers by name with another container's, undone
+with `reset_override` (both reflected in reads):
+
+```python
+Base.override(FakeContainer)   # Base.db now resolves FakeContainer.db
+Base.reset_override()
+```
 
 ## Type checking
 
-Reads resolve to the dependency's type, and the override API type-checks clean
-under **ty**, **mypy** and **pyright** (Pylance) — verified by a test matrix that
-runs all three. Overriding is done with `set_overrides` / `clear_overrides`;
-direct attribute assignment (`Services.db = …`) is intentionally rejected by all
-three checkers, so there is one obvious, typed way to override.
+Reads resolve to the field's type, and `set_overrides` is fully checked under
+**ty**, **mypy** and **pyright** (Pylance) — unknown provider names and wrong
+value types are compile-time errors, verified by a test matrix that runs all
+three. This requires an **annotation** on each provider (`db: Db = Singleton(Db)`)
+so the checker knows the field type. Direct attribute assignment
+(`Services.db = …`) is rejected at runtime — use `set_overrides`.
+
+## Compatibility with `dependency-injector`
+
+The static, class-level model keeps most of `dependency-injector`'s API, but a
+few pieces are intentionally different.
+
+**Preserved:**
+
+- Introspection — `providers`, `cls_providers`, `inherited_providers`,
+  `traverse()`, `dependencies`.
+- Overriding — `override(other)` / `reset_override()` / `reset_last_overriding()`
+  and the `overridden` tuple, plus the `@containers.override(Container)`
+  decorator; all reflected in reads.
+- Lazy resolution and per-provider caching semantics.
+
+**Deliberately different (because there is no container instance):**
+
+- **Reads return values, not providers** — `Services.db` is the resolved
+  `Database`, so `Services.db()` and provider methods like
+  `Services.db.override(...)` do not apply. Override with `set_overrides` / the
+  container-level `override`; if you need the raw provider, use
+  `Services.providers["db"]`.
+- **Instantiation is repurposed** — `Services(db=fake)` applies value overrides
+  and returns a restoring handle (usable as a `with` block); it does not build a
+  container instance.
+- **Direct provider assignment** (`Services.db = provider`) is rejected — use
+  `set_overrides`.
+- **`init_resources()` / `shutdown_resources()`** are deprecated and raise:
+  they are instance-level and meaningless here. A `Resource` still initializes on
+  first access, but its post-`yield` teardown is not driven — use `Resource` for
+  init-only setup, or manage teardown yourself.
 
 ## Notes & limitations
 
-Because containers are resolved at the **class level** (no container instance):
-
-- **Overrides** go through `set_overrides` / `clear_overrides`.
-  dependency_injector's *container-level* override
-  (`Container.override(other_container)`) does **not** affect resolution here -
-  reads come from the static registry, not a container instance.
-- **`Resource` teardown** is not triggered automatically: a `Resource` provider
-  initializes on first access, but its post-`yield` teardown needs a container
-  instance / `shutdown_resources()`, which the class-level model does not drive.
-  Use `Resource` for init-only setup, or manage teardown yourself.
+Because containers are resolved at the **class level** (no container instance),
+**overrides** go through `set_overrides` (scoped `with …:` restores on exit; a
+bare call is permanent), or `override(other_container)` for a whole-container
+swap. Both are reflected in reads and cleared by `reset_override`.
 
 ## Requirements
 

@@ -1,5 +1,5 @@
-"""Overriding providers: the ``set_overrides`` / ``clear_overrides``
-classmethods and override propagation to dependents."""
+"""set_overrides: scoped (context manager, auto-restore) and permanent, plus
+unknown-name rejection and override propagation to dependents."""
 from __future__ import annotations
 
 import itertools
@@ -11,73 +11,65 @@ from static_dependency_injector.containers import StaticDeclarativeContainer
 
 
 class TestSetOverrides:
-    def test_overrides_named_provider(self) -> None:
+    def test_scoped_override_auto_restores(self) -> None:
         class C(StaticDeclarativeContainer):
-            val = sp.Singleton(lambda: "orig")
+            val: str = sp.Singleton(lambda: "orig")
+
+        assert C.val == "orig"
+        with C.set_overrides(val="fake"):
+            assert C.val == "fake"
+        assert C.val == "orig"
+
+    def test_permanent_override(self) -> None:
+        class C(StaticDeclarativeContainer):
+            val: str = sp.Singleton(lambda: "orig")
 
         C.set_overrides(val="fake")
         assert C.val == "fake"
 
-    def test_overrides_several_at_once(self) -> None:
+    def test_multiple_at_once(self) -> None:
         class C(StaticDeclarativeContainer):
-            a = sp.Object(1)
-            b = sp.Object(2)
+            a: int = sp.Object(1)
+            b: int = sp.Object(2)
 
-        C.set_overrides(a=10, b=20)
-        assert (C.a, C.b) == (10, 20)
+        with C.set_overrides(a=10, b=20):
+            assert (C.a, C.b) == (10, 20)
+        assert (C.a, C.b) == (1, 2)
 
-    def test_unknown_provider_rejected(self) -> None:
+    def test_unknown_name_rejected_at_runtime(self) -> None:
         class C(StaticDeclarativeContainer):
-            val = sp.Object(1)
+            val: int = sp.Object(1)
 
         with pytest.raises(TypeError, match="no provider"):
-            C.set_overrides(bogus=1)
+            C.set_overrides(**{"bogus": 1})  # dynamic: bypass the static check
 
-
-class TestClearOverrides:
-    def test_reset_named(self) -> None:
+    def test_direct_assignment_is_rejected(self) -> None:
         class C(StaticDeclarativeContainer):
-            val = sp.Singleton(lambda: "orig")
+            val: int = sp.Object(1)
 
-        C.set_overrides(val="fake")
-        C.clear_overrides("val")
+        with pytest.raises(AttributeError, match="set_overrides"):
+            C.val = 2  # type-clean (int field) but rejected at runtime
+
+    def test_nested_scopes_stack(self) -> None:
+        class C(StaticDeclarativeContainer):
+            val: str = sp.Singleton(lambda: "orig")
+
+        with C.set_overrides(val="a"):
+            with C.set_overrides(val="b"):
+                assert C.val == "b"
+            assert C.val == "a"  # inner exit restores outer, not original
         assert C.val == "orig"
 
-    def test_reset_all_when_no_names(self) -> None:
-        class C(StaticDeclarativeContainer):
-            a = sp.Singleton(lambda: "a0")
-            b = sp.Singleton(lambda: "b0")
 
-        C.set_overrides(a="a1", b="b1")
-        C.clear_overrides()
-        assert (C.a, C.b) == ("a0", "b0")
-
-    def test_reset_is_safe_when_not_overridden(self) -> None:
-        class C(StaticDeclarativeContainer):
-            val = sp.Singleton(lambda: "orig")
-
-        C.clear_overrides()  # nothing overridden - must not raise
-        assert C.val == "orig"
-
-    def test_unknown_provider_rejected(self) -> None:
-        class C(StaticDeclarativeContainer):
-            val = sp.Object(1)
-
-        with pytest.raises(TypeError, match="no provider"):
-            C.clear_overrides("bogus")
-
-
-class TestOverrideRebuildsDependents:
-    def test_factory_dependent_picks_up_overridden_dependency(self) -> None:
-        marker = itertools.count()
+class TestOverridePropagation:
+    def test_override_of_dependency_reaches_factory_dependent(self) -> None:
+        counter = itertools.count()
 
         class C(StaticDeclarativeContainer):
-            seed = sp.Singleton(lambda: "real")
-            # a factory that reads the seed on every build
-            built = sp.Factory(lambda seed: f"{seed}-{next(marker)}", seed=seed)
+            seed: str = sp.Singleton(lambda: "real")
+            built: str = sp.Factory(lambda seed: f"{seed}-{next(counter)}", seed=seed)
 
         assert C.built.startswith("real-")
-        C.set_overrides(seed="fake")
-        assert C.built.startswith("fake-")  # rebuilt against the override
-        C.clear_overrides("seed")
+        with C.set_overrides(seed="fake"):
+            assert C.built.startswith("fake-")  # factory rebuilt against override
         assert C.built.startswith("real-")

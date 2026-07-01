@@ -24,10 +24,12 @@ _CASES = Path(__file__).parent / "cases"
 # Expected outcome per (case, checker): "clean" or "error".
 _EXPECT: dict[str, dict[str, str]] = {
     "user_api": {"ty": "clean", "mypy": "clean", "pyright": "clean"},
+    "nested_container": {"ty": "clean", "mypy": "clean", "pyright": "clean"},
     "read_value_types": {"ty": "clean", "mypy": "clean", "pyright": "clean"},
     "overrides_and_reset": {"ty": "clean", "mypy": "clean", "pyright": "clean"},
     "read_wrong_type": {"ty": "error", "mypy": "error", "pyright": "error"},
-    "assignment_override": {"ty": "error", "mypy": "error", "pyright": "error"},
+    "override_errors": {"ty": "error", "mypy": "error", "pyright": "error"},
+    "subclass_override": {"ty": "error", "mypy": "error", "pyright": "error"},
 }
 
 _CHECKERS = ("ty", "mypy", "pyright")

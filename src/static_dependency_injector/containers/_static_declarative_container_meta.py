@@ -1,98 +1,52 @@
+"""Metaclass for static containers.
+
+Under type checking it is a plain ``type`` - so its runtime ``__call__`` does not
+shadow the ``dataclass_transform``-synthesized constructor, and
+dependency_injector's (un-exported) metaclass is avoided. At runtime it subclasses
+``DeclarativeContainerMetaClass`` and repurposes ``Container(**overrides)`` to
+apply value-overrides to the class providers, returning a restore handle.
+"""
 from __future__ import annotations
 
-import threading
-from typing import TYPE_CHECKING, Any, ClassVar, cast
-
-from dependency_injector import providers
-
-from static_dependency_injector.containers._container_config_dict import ContainerConfigDict
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    # The shipped stubs don't export the declarative metaclass; for the checker
-    # we only need to know it is a metaclass (a ``type``). At runtime we subclass
-    # the real one so containers behave like dependency_injector's.
-    _DeclarativeContainerMeta = type
+    StaticDeclarativeContainerMeta = type
 else:
-    from dependency_injector.containers import (
-        DeclarativeContainerMetaClass as _DeclarativeContainerMeta,
-    )
+    from dependency_injector import containers, providers
 
+    class _OverrideHandle:
+        """Applies the overrides immediately; as a context manager, restores
+        them on exit (``with Container.set_overrides(...): ...``)."""
 
-class _ResolvedProperty(property):
-    """Marker ``property`` subclass: lets a container's provider attributes be
-    told apart from any other properties on the metaclass MRO (e.g. those of
-    ``dependency_injector``)."""
+        def __init__(self, cls: Any, names: tuple[str, ...]) -> None:
+            self._cls = cls
+            self._names = names
 
+        def __enter__(self) -> _OverrideHandle:
+            return self
 
-class StaticDeclarativeContainerMeta(_DeclarativeContainerMeta):
-    """Lifts declared providers onto a per-class metaclass as resolved
-    properties, and registers them under the container's ``name``.
-    """
+        def __exit__(self, *_exc: object) -> None:
+            for name in self._names:
+                provider = self._cls.providers[name]
+                if provider.overridden:
+                    provider.reset_last_overriding()
 
-    _REGISTRY: ClassVar[dict[str, dict[str, providers.Provider[Any]]]] = {}
-    _REGISTRY_LOCK: ClassVar[threading.RLock] = threading.RLock()
+    class StaticDeclarativeContainerMeta(containers.DeclarativeContainerMetaClass):
+        def __call__(cls, **overrides: Any) -> _OverrideHandle:  # noqa: N805
+            for name, value in overrides.items():
+                if name not in cls.providers:
+                    raise TypeError(f"{cls.__name__} has no provider {name!r}")
+                cls.providers[name].override(providers.Object(value))
+            return _OverrideHandle(cls, tuple(overrides))
 
-    @staticmethod
-    def _resolved_property(name: str, attr: str) -> _ResolvedProperty:
-        """Build a class property that resolves provider ``name``/``attr`` lazily."""
-        registry = StaticDeclarativeContainerMeta._REGISTRY
-
-        def fget(_cls: Any) -> Any:
-            return registry[name][attr]()
-
-        def fset(cls: Any, value: Any) -> None:
-            provider = registry[name][attr]
-            hook = getattr(provider, "_static_di_on_set", None)
-            if hook is not None:
-                value = hook(cls, value)
-            provider.override(providers.Object(value))
-
-        def fdel(_cls: Any) -> None:
-            registry[name][attr].reset_override()
-
-        return _ResolvedProperty(fget, fset, fdel)
-
-    def __new__(
-        mcs,
-        cls_name: str,
-        bases: tuple[type, ...],
-        namespace: dict[str, Any],
-        **kwargs: Any,
-    ) -> StaticDeclarativeContainerMeta:
-        own = {attr: value for attr, value in namespace.items() if isinstance(value, providers.Provider)}
-        if own:
-            config: ContainerConfigDict = namespace.get("container_config", {})
-            module = namespace.get("__module__", "")
-            qualname = namespace.get("__qualname__", cls_name)
-            name = config.get("name") or (f"{module}.{qualname}" if module else qualname)
-            with mcs._REGISTRY_LOCK:
-                bucket = mcs._REGISTRY.setdefault(name, {})
-                for attr, provider in own.items():
-                    bucket.setdefault(attr, provider)  # first writer under a name wins
-            props = {attr: mcs._resolved_property(name, attr) for attr in own}
-            mcs = cast(
-                "type[StaticDeclarativeContainerMeta]",
-                type(f"_{cls_name}Meta", (mcs,), props),  # ty:ignore[unsupported-dynamic-base]
-            )
-        return super().__new__(mcs, cls_name, bases, namespace, **kwargs)
-
-    @classmethod
-    def reset_test_context(cls) -> None:
-        """Reset every test-scoped provider (``TestContextSingleton``) across all
-        registered containers, so the next test gets fresh instances.
-
-        The bundled pytest plugin calls this on each test teardown, so a manual
-        ``provider.reset()`` in a test ``finally`` is no longer needed. Also
-        callable directly: ``MyServices.reset_test_context()``.
-        """
-        with cls._REGISTRY_LOCK:
-            test_scoped = [
-                provider
-                for bucket in cls._REGISTRY.values()
-                for provider in bucket.values()
-                if getattr(provider, "_static_di_test_scoped", False)
-            ]
-        for provider in test_scoped:
-            reset = getattr(provider, "reset", None)
-            if callable(reset):
-                reset()
+        def __setattr__(cls, name: str, value: Any) -> None:  # noqa: N805
+            # `Container.attr = x` would silently clobber the provider; steer to
+            # set_overrides (this fires at runtime; type checkers can't see it).
+            try:
+                is_provider = name in cls.providers
+            except Exception:  # noqa: BLE001 - providers not ready during creation
+                is_provider = False
+            if is_provider:
+                raise AttributeError(f"assign via {cls.__name__}.set_overrides({name}=...)")
+            super().__setattr__(name, value)

@@ -1,4 +1,5 @@
-"""Override classmethods, reset, and ``del`` are well-typed (clean everywhere)."""
+"""The typed override API - names and value types checked, scoped and permanent -
+plus reset_test_context, all clean in ty/mypy/pyright."""
 from static_dependency_injector import static_providers as sp
 from static_dependency_injector.containers import StaticDeclarativeContainer
 
@@ -8,12 +9,12 @@ class Db:
 
 
 class Services(StaticDeclarativeContainer):
-    db = sp.Singleton(Db)
-    count = sp.Object(0)
+    db: Db = sp.Singleton(Db)
+    count: int = sp.Object(0)
 
 
-Services.set_overrides(db=Db(), count=5)
-Services.set_overrides(db=Db())
-Services.clear_overrides("db")
-Services.clear_overrides()
+Services.set_overrides(db=Db(), count=5)   # multiple, correct types
+Services.set_overrides(db=Db())            # subset
+with Services.set_overrides(db=Db()):      # scoped - auto-restores on exit
+    pass
 Services.reset_test_context()

@@ -4,7 +4,7 @@ from static_dependency_injector.containers import StaticDeclarativeContainer
 
 
 class Services(StaticDeclarativeContainer):
-    count = sp.Object(0)
+    count: int = sp.Object(0)
 
 
 wrong: str = Services.count  # count resolves to int, not str
