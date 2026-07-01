@@ -163,6 +163,20 @@ Base.provider.confg   # ❌ typo — compile-time error
 the resolved value (for reading). For a **dynamic** name, use the underlying
 `Container.providers[name]` (dependency-injector's provider dict).
 
+**Why name the base explicitly?** There is no self-reference inside a class body:
+while the body runs the class does not exist yet, and no type checker models "the
+class being defined" as a value — the class name, `__class__`, and
+dependency-injector's `providers.Self` / `__self__` are all undefined there, at
+type-check and at runtime. So reference the base by name.
+
+If something genuinely needs *the container itself*, remember a static container
+is just a class — import it and use it directly (`from app.services import
+Services; Services.db`); you don't need `providers.Self` for that (it exists for
+the dynamic-container case). The only reason to reach for a self-reference is a
+**circular import** between a container and a component that annotates it — solve
+that with an `if TYPE_CHECKING:` guarded (type-only) import, not a runtime
+self-reference.
+
 ## Type checking
 
 Reads resolve to the field's type, and `set_overrides` is fully checked under
