@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "static-dependency-injector"
-version = "0.3.1"
+version = "0.3.2"
 description = "Static, lazily-resolved declarative DI containers built on dependency-injector."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -62,7 +62,7 @@ all = "error"
 [tool.ruff]
 line-length = 120
 # Typing case files intentionally contain type errors; exclude from lint gate.
-exclude = [".*", "__pycache__", "tests/typing/cases", "examples"]
+exclude = [".*", "__pycache__", "tests/typing/cases"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "N"]
@@ -79,4 +79,4 @@ markers = [
 
 # Typing case files intentionally contain type errors; exclude from the ty gate.
 [tool.ty.src]
-exclude = ["tests/typing/cases", "examples"]
+exclude = ["tests/typing/cases"]

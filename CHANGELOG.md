@@ -4,7 +4,21 @@ All notable changes to this project are documented here. This project follows
 [Semantic Versioning](https://semver.org/); while pre-1.0, minor versions may
 include breaking changes.
 
-## [0.3.0] - 2026-07-01
+## [0.3.2]
+
+### Added
+- `UnannotatedProviderWarning` — emitted at class creation for a provider
+  declared without a type annotation (which typed `set_overrides` can't see).
+  Annotations are inherited across the MRO, so redeclaring an already-annotated
+  provider in a subclass does not warn.
+- `Container.provider.<name>` — a typed accessor for the underlying provider
+  object, for wiring a provider from another one across a class boundary (e.g. an
+  inherited provider whose bare name is out of scope in the subclass body). Field
+  names autocomplete and typos are compile-time errors under ty/mypy/pyright;
+  `Container.<name>` still returns the resolved value. For a dynamic name, the
+  existing `Container.providers[name]` dict returns the same provider object.
+
+## [0.3.1] - 2026-07-01
 
 ### Added
 - `override(other_container)` / `reset_override()` apply a whole-container swap by
@@ -17,16 +31,6 @@ include breaking changes.
 - `override()` now also records dependency_injector's container-level overriding
   state, so the inherited `reset_last_overriding()` works and `overridden` is
   populated (previously our override was per-provider only).
-- `UnannotatedProviderWarning` — emitted at class creation for a provider
-  declared without a type annotation (which typed `set_overrides` can't see).
-  Annotations are inherited across the MRO, so redeclaring an already-annotated
-  provider in a subclass does not warn.
-- `Container.provider.<name>` — a typed accessor for the underlying provider
-  object, for wiring a provider from another one across a class boundary (e.g. an
-  inherited provider whose bare name is out of scope in the subclass body). Field
-  names autocomplete and typos are compile-time errors under ty/mypy/pyright;
-  `Container.<name>` still returns the resolved value. For a dynamic name, the
-  existing `Container.providers[name]` dict returns the same provider object.
 
 ### Deprecated
 - `init_resources()` / `shutdown_resources()` — instance-level in
@@ -74,6 +78,7 @@ include breaking changes.
 - Bundled pytest plugin (auto-registered) that resets `TestContextSingleton`
   providers after each test.
 
-[0.3.0]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.2.0...v0.3.0
+[0.3.2]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.3.1...v0.3.2
+[0.3.1]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.2.0...v0.3.1
 [0.2.0]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/v-dermichev/static-dependency-injector/releases/tag/v0.1.0
