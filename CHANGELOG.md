@@ -4,7 +4,7 @@ All notable changes to this project are documented here. This project follows
 [Semantic Versioning](https://semver.org/); while pre-1.0, minor versions may
 include breaking changes.
 
-## [0.3.2]
+## [0.3.2] - 2026-07-01
 
 ### Changed
 - `set_overrides` now mirrors dependency_injector's `override()`: a **provider**
