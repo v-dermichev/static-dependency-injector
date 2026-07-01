@@ -50,6 +50,50 @@ class TestSetOverrides:
         with pytest.raises(AttributeError, match="set_overrides"):
             C.val = 2  # type-clean (int field) but rejected at runtime
 
+    def test_override_with_value_wraps_in_object(self) -> None:
+        class C(StaticDeclarativeContainer):
+            val: str = sp.Singleton(lambda: "orig")
+
+        with C.set_overrides(val="fake"):
+            assert C.val == "fake"  # Object: the value as-is
+        assert C.val == "orig"
+
+    def test_override_with_provider_uses_it_directly(self) -> None:
+        # a provider argument is used as-is (like dependency_injector's override):
+        # a Factory yields a fresh value on each resolve, not a wrapped constant
+        counter = itertools.count()
+
+        class C(StaticDeclarativeContainer):
+            val: str = sp.Singleton(lambda: "orig")
+
+        with C.set_overrides(val=sp.Factory(lambda: f"fake-{next(counter)}")):
+            first, second = C.val, C.val
+            assert first.startswith("fake-")
+            assert first != second  # Factory rebuilt each resolve (not an Object)
+        assert C.val == "orig"
+
+    def test_override_provider_changes_resolution_semantics(self) -> None:
+        # the overriding provider's own semantics take over: a Factory overridden
+        # with a Singleton resolves to one shared instance, and vice versa.
+        class Obj:
+            pass
+
+        class Factoried(StaticDeclarativeContainer):
+            x: Obj = sp.Factory(Obj)
+
+        assert Factoried.x is not Factoried.x  # Factory: fresh each resolve
+        with Factoried.set_overrides(x=sp.Singleton(Obj)):
+            assert Factoried.x is Factoried.x  # now Singleton: one shared instance
+        assert Factoried.x is not Factoried.x  # restored to Factory
+
+        class Singletoned(StaticDeclarativeContainer):
+            y: Obj = sp.Singleton(Obj)
+
+        assert Singletoned.y is Singletoned.y  # Singleton: shared
+        with Singletoned.set_overrides(y=sp.Factory(Obj)):
+            assert Singletoned.y is not Singletoned.y  # now Factory: fresh
+        assert Singletoned.y is Singletoned.y  # restored to Singleton
+
     def test_nested_scopes_stack(self) -> None:
         class C(StaticDeclarativeContainer):
             val: str = sp.Singleton(lambda: "orig")

@@ -27,6 +27,7 @@ db = Services.db                                # resolved Database (lazy, cache
 with Services.set_overrides(db=fake_db):        # scoped — auto-restored on exit
     ...
 Services.set_overrides(db=fake_db)              # or permanent
+Services.set_overrides(db=sp.Factory(FakeDb))   # a provider works too (fresh each resolve)
 
 Services.set_overrides(dbb=fake_db)             # ❌ unknown provider (type error)
 Services.set_overrides(db=123)                  # ❌ wrong value type (type error)
@@ -231,6 +232,13 @@ Because containers are resolved at the **class level** (no container instance),
 **overrides** go through `set_overrides` (scoped `with …:` restores on exit; a
 bare call is permanent), or `override(other_container)` for a whole-container
 swap. Both are reflected in reads and cleared by `reset_override`.
+
+`set_overrides` takes either a **value** or a **provider** — mirroring
+dependency-injector's `override()`. A value is pinned as-is; a provider keeps its
+own semantics, so `set_overrides(db=sp.Factory(FakeDb))` yields a fresh instance
+on each resolve (and `sp.Singleton(FakeDb)` a shared one), which is handy for
+scoped test overrides. This holds for the scoped form too: the override — value
+or provider — is restored when the `with` block exits.
 
 ## Requirements
 

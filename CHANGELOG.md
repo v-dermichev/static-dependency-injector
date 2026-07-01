@@ -6,6 +6,13 @@ include breaking changes.
 
 ## [0.3.2]
 
+### Changed
+- `set_overrides` now mirrors dependency_injector's `override()`: a **provider**
+  argument (e.g. `set_overrides(logger=Factory(...))`) is used as-is (a `Factory`
+  yields a fresh instance each resolve), while a plain **value** is wrapped in
+  `Object` as before. Previously a provider was wrapped in `Object` too, so it
+  leaked the provider object instead of resolving through it.
+
 ### Added
 - `UnannotatedProviderWarning` — emitted at class creation for a provider
   declared without a type annotation (which typed `set_overrides` can't see).

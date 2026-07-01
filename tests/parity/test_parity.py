@@ -135,6 +135,26 @@ class TestOverrideParity:
         St.reset_override()
         assert Di.x() == St.x == "real"
 
+    def test_override_with_provider_parity(self) -> None:
+        # di's override(provider) uses the provider as-is; static set_overrides
+        # must match. Start as a Factory (fresh each resolve), override with a
+        # Singleton (shared), reset back to Factory - identically in both.
+        class Di(containers.DeclarativeContainer):
+            x = providers.Factory(object)
+
+        class St(StaticDeclarativeContainer):
+            x: object = sp.Factory(object)
+
+        assert (Di.x() is not Di.x()) is (St.x is not St.x) is True
+
+        Di.x.override(providers.Singleton(object))
+        St.set_overrides(x=sp.Singleton(object))
+        assert (Di.x() is Di.x()) is (St.x is St.x) is True
+
+        Di.x.reset_override()
+        St.reset_override()
+        assert (Di.x() is not Di.x()) is (St.x is not St.x) is True
+
     def test_whole_container_override(self) -> None:
         class DiFake(containers.DeclarativeContainer):
             cfg = providers.Object(_Cfg("fake"))

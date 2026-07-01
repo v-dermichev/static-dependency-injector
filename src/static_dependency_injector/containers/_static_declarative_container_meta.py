@@ -65,7 +65,11 @@ else:
             for name, value in overrides.items():
                 if name not in cls.providers:
                     raise TypeError(f"{cls.__name__} has no provider {name!r}")
-                cls.providers[name].override(providers.Object(value))
+                # Mirror dependency_injector's override(): a provider is used as-is
+                # (e.g. Factory -> fresh instance each resolve); a plain value is
+                # wrapped in Object.
+                override = value if isinstance(value, providers.Provider) else providers.Object(value)
+                cls.providers[name].override(override)
             return _OverrideHandle(cls, tuple(overrides))
 
         def __setattr__(cls, name: str, value: Any) -> None:  # noqa: N805
