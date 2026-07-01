@@ -28,9 +28,11 @@ _EXPECT: dict[str, dict[str, str]] = {
     "nested_container": {"ty": "clean", "mypy": "clean", "pyright": "clean"},
     "read_value_types": {"ty": "clean", "mypy": "clean", "pyright": "clean"},
     "overrides_and_reset": {"ty": "clean", "mypy": "clean", "pyright": "clean"},
+    "provider_wiring": {"ty": "clean", "mypy": "clean", "pyright": "clean"},
     "read_wrong_type": {"ty": "error", "mypy": "error", "pyright": "error"},
     "override_errors": {"ty": "error", "mypy": "error", "pyright": "error"},
     "subclass_override": {"ty": "error", "mypy": "error", "pyright": "error"},
+    "provider_wiring_typo": {"ty": "error", "mypy": "error", "pyright": "error"},
 }
 
 _CHECKERS = ("ty", "mypy", "pyright")

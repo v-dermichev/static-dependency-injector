@@ -26,6 +26,37 @@ class _SetOverrides:
         return owner
 
 
+class _ProviderGetter:
+    """Runtime proxy: attribute access returns the underlying (lazy) provider
+    object, so it can be used to wire another provider."""
+
+    def __init__(self, container: Any) -> None:
+        self._container = container
+
+    def __getattr__(self, name: str) -> Any:
+        return self._container.providers[name]
+
+
+class _Providers:
+    """Descriptor: ``Container.provider.x`` is typed as the container - so field
+    names (including inherited ones) autocomplete and typos are compile-time
+    errors - but returns the *provider* object at runtime. Use it to wire a
+    provider from another provider across a class boundary (where the bare name is
+    out of scope), e.g. an inherited one:
+
+    ```python
+    class Child(Base):
+        svc: Svc = Singleton(Svc, dep=Base.provider.dep)   # inherited provider
+    ```
+
+    (Reading ``Container.x`` gives the resolved value; ``Container.provider.x``
+    gives the provider to wire with.)
+    """
+
+    def __get__[C](self, _obj: object, owner: type[C]) -> type[C]:
+        return _ProviderGetter(owner)  # ty:ignore[invalid-return-type]
+
+
 @dataclass_transform(kw_only_default=True)
 class StaticDeclarativeContainer(
     containers.DeclarativeContainer,
@@ -50,6 +81,7 @@ class StaticDeclarativeContainer(
     """
 
     set_overrides = _SetOverrides()
+    provider = _Providers()
 
     def __enter__(self) -> Self:
         return self

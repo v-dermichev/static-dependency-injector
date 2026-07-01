@@ -139,6 +139,30 @@ Base.override(FakeContainer)   # Base.db now resolves FakeContainer.db
 Base.reset_override()
 ```
 
+## Wiring across inheritance
+
+Within one container body you wire by the provider's bare name (`db=config`). In a
+**subclass** body that name is out of scope, and `Base.db` would resolve to a
+*value*, not the provider. Use `Base.provider.db` to get the provider object —
+it's typed as the container, so field names (inherited included) **autocomplete**
+and typos are **compile-time errors** under ty/mypy/pyright, while at runtime it's
+the lazy provider:
+
+```python
+class Base(StaticDeclarativeContainer):
+    config: Config = sp.Singleton(load_config)
+
+class Child(Base):
+    # `config` is out of scope here; reference the inherited provider:
+    service: Service = sp.Singleton(Service, config=Base.provider.config)
+
+Base.provider.confg   # ❌ typo — compile-time error
+```
+
+`Container.provider.x` returns the provider (for wiring); `Container.x` returns
+the resolved value (for reading). For a **dynamic** name, use the underlying
+`Container.providers[name]` (dependency-injector's provider dict).
+
 ## Type checking
 
 Reads resolve to the field's type, and `set_overrides` is fully checked under
@@ -173,7 +197,9 @@ few pieces are intentionally different.
 - **Reads return values, not providers** — `Services.db` is the resolved
   `Database`, so `Services.db()` and provider methods like
   `Services.db.override(...)` do not apply. Override with `set_overrides` / the
-  container-level `override`; if you need the raw provider, use
+  container-level `override`; if you need the *provider* object (to wire another
+  provider with it), use `Services.provider.db` — typed and autocompleted (see
+  [Wiring across inheritance](#wiring-across-inheritance)) — or the untyped
   `Services.providers["db"]`.
 - **Instantiation is repurposed** — `Services(db=fake)` applies value overrides
   and returns a restoring handle (usable as a `with` block); it does not build a

@@ -21,6 +21,12 @@ include breaking changes.
   declared without a type annotation (which typed `set_overrides` can't see).
   Annotations are inherited across the MRO, so redeclaring an already-annotated
   provider in a subclass does not warn.
+- `Container.provider.<name>` — a typed accessor for the underlying provider
+  object, for wiring a provider from another one across a class boundary (e.g. an
+  inherited provider whose bare name is out of scope in the subclass body). Field
+  names autocomplete and typos are compile-time errors under ty/mypy/pyright;
+  `Container.<name>` still returns the resolved value. For a dynamic name, the
+  existing `Container.providers[name]` dict returns the same provider object.
 
 ### Deprecated
 - `init_resources()` / `shutdown_resources()` — instance-level in
