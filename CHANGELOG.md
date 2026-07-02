@@ -4,25 +4,7 @@ All notable changes to this project are documented here. This project follows
 [Semantic Versioning](https://semver.org/); while pre-1.0, minor versions may
 include breaking changes.
 
-## [0.3.2] - 2026-07-02
-
-### Fixed
-- Scoped `set_overrides` now removes on exit *exactly* the override it added
-  (matched by identity), instead of popping whichever override is on top. Nested
-  scopes exiting out of order, and a bare (permanent) `set_overrides` interleaved
-  inside a `with` block, no longer leave a stale override behind or drop the wrong
-  one.
-
-### Changed
-- `reset_test_context()` is now **scoped to the container it's called on** (its
-  own + inherited `TestContextSingleton` providers), instead of resetting every
-  test-scoped provider process-wide. Overriding it on one container no longer
-  affects others.
-- `set_overrides` now mirrors dependency_injector's `override()`: a **provider**
-  argument (e.g. `set_overrides(logger=Factory(...))`) is used as-is (a `Factory`
-  yields a fresh instance each resolve), while a plain **value** is wrapped in
-  `Object` as before. Previously a provider was wrapped in `Object` too, so it
-  leaked the provider object instead of resolving through it.
+## [0.3.3] - 2026-07-02
 
 ### Added
 - `ContextLocalContainer` / `ThreadLocalContainer` / `TestLocalContainer` — scoped
@@ -34,6 +16,32 @@ include breaking changes.
 - `reset_all_test_contexts()` — resets test-scoped providers for every container,
   routing through each container's (possibly overridden) `reset_test_context()`.
   The bundled pytest plugin calls this after each test.
+
+### Changed
+- `reset_test_context()` is now **scoped to the container it's called on** (its
+  own + inherited `TestContextSingleton` providers), instead of resetting every
+  test-scoped provider process-wide. Overriding it on one container no longer
+  affects others.
+
+### Fixed
+- Scoped `set_overrides` now removes on exit *exactly* the override it added
+  (matched by identity), instead of popping whichever override is on top. Nested
+  scopes exiting out of order, and a bare (permanent) `set_overrides` interleaved
+  inside a `with` block, no longer leave a stale override behind or drop the wrong
+  one.
+- Removed `ty` from the runtime dependencies (it was listed by mistake; `ty` is a
+  dev-only type checker).
+
+## [0.3.2] - 2026-07-01
+
+### Changed
+- `set_overrides` now mirrors dependency_injector's `override()`: a **provider**
+  argument (e.g. `set_overrides(logger=Factory(...))`) is used as-is (a `Factory`
+  yields a fresh instance each resolve), while a plain **value** is wrapped in
+  `Object` as before. Previously a provider was wrapped in `Object` too, so it
+  leaked the provider object instead of resolving through it.
+
+### Added
 - `UnannotatedProviderWarning` — emitted at class creation for a provider
   declared without a type annotation (which typed `set_overrides` can't see).
   Annotations are inherited across the MRO, so redeclaring an already-annotated
@@ -105,6 +113,7 @@ include breaking changes.
 - Bundled pytest plugin (auto-registered) that resets `TestContextSingleton`
   providers after each test.
 
+[0.3.3]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.2.0...v0.3.1
 [0.2.0]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.1.0...v0.2.0
