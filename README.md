@@ -106,6 +106,14 @@ class Services(StaticDeclarativeContainer):
 # after each test the plugin resets every container's test-scoped providers
 ```
 
+To **opt out** of the auto-reset, disable the plugin the standard pytest way —
+`pytest -p no:static_dependency_injector`, or in config:
+
+```toml
+[tool.pytest.ini_options]
+addopts = ["-p", "no:static_dependency_injector"]
+```
+
 **Run under the stock `unittest` runner** (`python -m unittest`) — there is no
 plugin auto-discovery outside pytest, so register the reset yourself with
 `addCleanup`:
