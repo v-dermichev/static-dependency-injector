@@ -6,6 +6,13 @@ include breaking changes.
 
 ## [0.3.2] - 2026-07-01
 
+### Fixed
+- Scoped `set_overrides` now removes on exit *exactly* the override it added
+  (matched by identity), instead of popping whichever override is on top. Nested
+  scopes exiting out of order, and a bare (permanent) `set_overrides` interleaved
+  inside a `with` block, no longer leave a stale override behind or drop the wrong
+  one.
+
 ### Changed
 - `reset_test_context()` is now **scoped to the container it's called on** (its
   own + inherited `TestContextSingleton` providers), instead of resetting every

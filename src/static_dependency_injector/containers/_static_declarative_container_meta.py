@@ -31,21 +31,28 @@ else:
     from dependency_injector import containers, providers
 
     class _OverrideHandle:
-        """Applies the overrides immediately; as a context manager, restores
-        them on exit (``with Container.set_overrides(...): ...``)."""
+        """Applies the overrides immediately; as a context manager, removes on
+        exit *exactly* the overriding providers it added - identified by object
+        identity, not "the last one". So nested scopes exiting out of order, and a
+        bare (permanent) ``set_overrides`` interleaved inside a ``with`` block,
+        each restore correctly instead of popping whichever override happens to be
+        on top."""
 
-        def __init__(self, cls: Any, names: tuple[str, ...]) -> None:
+        def __init__(self, cls: Any, added: dict[str, Any]) -> None:
             self._cls = cls
-            self._names = names
+            self._added = added  # provider name -> the overriding provider we pushed
 
         def __enter__(self) -> _OverrideHandle:
             return self
 
         def __exit__(self, *_exc: object) -> None:
-            for name in self._names:
+            for name, mine in self._added.items():
                 provider = self._cls.providers[name]
-                if provider.overridden:
-                    provider.reset_last_overriding()
+                remaining = [o for o in provider.overridden if o is not mine]
+                if len(remaining) != len(provider.overridden):
+                    provider.reset_override()  # then re-apply the survivors in order
+                    for other in remaining:
+                        provider.override(other)
 
     class StaticDeclarativeContainerMeta(containers.DeclarativeContainerMetaClass):
         def __init__(cls, *args: Any, **kwargs: Any) -> None:  # noqa: N805
@@ -69,6 +76,7 @@ else:
                     )
 
         def __call__(cls, **overrides: Any) -> _OverrideHandle:  # noqa: N805
+            added: dict[str, Any] = {}
             for name, value in overrides.items():
                 if name not in cls.providers:
                     raise TypeError(f"{cls.__name__} has no provider {name!r}")
@@ -77,7 +85,8 @@ else:
                 # wrapped in Object.
                 override = value if isinstance(value, providers.Provider) else providers.Object(value)
                 cls.providers[name].override(override)
-            return _OverrideHandle(cls, tuple(overrides))
+                added[name] = override
+            return _OverrideHandle(cls, added)
 
         def __setattr__(cls, name: str, value: Any) -> None:  # noqa: N805
             # `Container.attr = x` would silently clobber the provider; steer to

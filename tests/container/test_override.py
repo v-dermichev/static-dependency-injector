@@ -104,6 +104,33 @@ class TestSetOverrides:
             assert C.val == "a"  # inner exit restores outer, not original
         assert C.val == "orig"
 
+    def test_permanent_override_inside_scope_survives(self) -> None:
+        # a scope removes exactly its own override, not "the last one" - so a bare
+        # (permanent) override applied inside the block is not clobbered by exit.
+        class C(StaticDeclarativeContainer):
+            val: str = sp.Singleton(lambda: "orig")
+
+        with C.set_overrides(val="scoped"):
+            C.set_overrides(val="permanent")  # bare -> permanent
+            assert C.val == "permanent"
+        assert C.val == "permanent"  # scoped removed, permanent survives
+        C.reset_override()
+        assert C.val == "orig"
+
+    def test_scopes_exiting_out_of_order_restore_correctly(self) -> None:
+        class C(StaticDeclarativeContainer):
+            val: str = sp.Singleton(lambda: "orig")
+
+        outer = C.set_overrides(val="outer")
+        outer.__enter__()
+        inner = C.set_overrides(val="inner")
+        inner.__enter__()
+        assert C.val == "inner"
+        outer.__exit__()  # close outer first
+        assert C.val == "inner"  # inner (still open) stays active, not "outer"
+        inner.__exit__()
+        assert C.val == "orig"
+
 
 class TestOverridePropagation:
     def test_override_of_dependency_reaches_factory_dependent(self) -> None:
