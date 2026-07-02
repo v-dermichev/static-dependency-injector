@@ -9,6 +9,7 @@ from static_dependency_injector.containers._static_declarative_container_meta im
     StaticDeclarativeContainerMeta,
 )
 from static_dependency_injector.static_providers._container_providers import _TestContextSingleton
+from static_dependency_injector.static_providers._scoped_containers import _TestLocalContainer
 
 # init_resources()/shutdown_resources() act on a container *instance*; a static,
 # class-level container has none, so they are deprecated and raise this.
@@ -139,6 +140,8 @@ class StaticDeclarativeContainer(
         for provider in cls.providers.values():
             if isinstance(provider, _TestContextSingleton):
                 provider.reset()
+            elif isinstance(provider, _TestLocalContainer):
+                provider.reset_scope()  # discard this test's subcontainer copy
 
     @staticmethod
     def reset_all_test_contexts() -> None:

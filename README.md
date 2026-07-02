@@ -65,8 +65,9 @@ Typed wrappers over `dependency-injector` providers (`static_providers`):
 
 `Factory`, `Singleton`, `ThreadSafeSingleton`, `ThreadLocalSingleton`,
 `ContextLocalSingleton`, `Callable`, `Coroutine`, `Object`, `Resource`,
-`Dependency`, `Selector`, `Provider`, `Container` (nested container), and the
-test-scoped `TestContextSingleton`.
+`Dependency`, `Selector`, `Provider`, `Container` (nested container),
+`ContextLocalContainer` / `ThreadLocalContainer` / `TestLocalContainer` (scoped
+subcontainers), and the test-scoped `TestContextSingleton`.
 
 Each is generic in its resolved type, so `Services.db` reads back as the
 dependency's type.
@@ -87,6 +88,38 @@ db = Outer.inner.db                 # resolved Database (typed)
 with Inner.set_overrides(db=fake):  # reflected through Outer.inner.db
     ...
 ```
+
+## Scoped subcontainers (async / thread / test isolation)
+
+The root is a single global composition root, so `set_overrides` on it mutates
+shared state — not safe when tests, async tasks or threads run concurrently in one
+process. Scope a **subcontainer** instead: each scope gets its own isolated copy
+of the nested container's providers (a `providers.deepcopy`, so overriding the
+copy's `cfg` flows to the copy's `db`), and the root is never touched.
+
+```python
+class Inner(StaticDeclarativeContainer):
+    cfg: Config = sp.Singleton(load_config)
+    db: Database = sp.Singleton(Database, config=cfg)
+
+class Root(StaticDeclarativeContainer):
+    inner: type[Inner] = sp.TestLocalContainer(Inner)
+
+# a test overrides ITS copy — isolated from the root and from other tests
+Root.inner.set_overrides(cfg=fake)   # typed + checked, like any set_overrides
+db = Root.inner.db                   # resolves against this scope's copy
+```
+
+- **`TestLocalContainer(Inner)`** — reset per test by the bundled plugin (like
+  `TestContextSingleton`); each test gets a fresh copy.
+- **`ThreadLocalContainer(Inner)`** — a copy per thread (`threading.local`).
+- **`ContextLocalContainer(Inner)`** — a copy per `contextvars` context. A fresh
+  thread gets its own; async **tasks** copy their parent's context, so sibling
+  tasks share a lazily-created copy — enter a fresh context (or use
+  `TestLocalContainer`) when you need strict per-task isolation.
+
+Reads and `set_overrides` are typed as the nested container (autocomplete +
+typo-checked), exactly like `Container`.
 
 ## Test-scoped providers
 

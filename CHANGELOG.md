@@ -25,6 +25,12 @@ include breaking changes.
   leaked the provider object instead of resolving through it.
 
 ### Added
+- `ContextLocalContainer` / `ThreadLocalContainer` / `TestLocalContainer` — scoped
+  subcontainer providers. Each scope (contextvars context / thread / test) gets an
+  isolated `providers.deepcopy` of the nested container, so a test, request or
+  thread overrides its *own* copy while the root composition root is untouched.
+  Reads and `set_overrides` are typed as the nested container.
+  `TestLocalContainer` is discarded per test by the bundled plugin.
 - `reset_all_test_contexts()` — resets test-scoped providers for every container,
   routing through each container's (possibly overridden) `reset_test_context()`.
   The bundled pytest plugin calls this after each test.

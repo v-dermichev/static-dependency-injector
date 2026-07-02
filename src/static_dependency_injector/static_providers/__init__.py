@@ -14,10 +14,16 @@ from static_dependency_injector.static_providers._container_providers import (
     ThreadLocalSingleton,
     ThreadSafeSingleton,
 )
+from static_dependency_injector.static_providers._scoped_containers import (
+    ContextLocalContainer,
+    TestLocalContainer,
+    ThreadLocalContainer,
+)
 
 __all__ = [
     "Callable",
     "Container",
+    "ContextLocalContainer",
     "ContextLocalSingleton",
     "Coroutine",
     "Dependency",
@@ -28,6 +34,8 @@ __all__ = [
     "Selector",
     "Singleton",
     "TestContextSingleton",
+    "TestLocalContainer",
+    "ThreadLocalContainer",
     "ThreadLocalSingleton",
     "ThreadSafeSingleton",
 ]
