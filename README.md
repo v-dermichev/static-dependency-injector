@@ -94,15 +94,16 @@ with Inner.set_overrides(db=fake):  # reflected through Outer.inner.db
 between tests. Reset is driven by an explicit hook, per test framework:
 
 **Run under pytest** — auto-cleaned. The bundled plugin (auto-registered on
-install) calls `reset_test_context()` after every test; nothing to wire up. This
-covers `unittest.TestCase` tests too, since pytest can run them — if your test
-runner is `pytest`, you get auto-clean regardless of how the tests are written:
+install) calls `reset_all_test_contexts()` after every test; nothing to wire up.
+This covers `unittest.TestCase` tests too, since pytest can run them — if your
+test runner is `pytest`, you get auto-clean regardless of how the tests are
+written:
 
 ```python
 class Services(StaticDeclarativeContainer):
     driver: Driver = sp.TestContextSingleton(make_driver)
 
-# after each test the plugin calls Services.reset_test_context() for you
+# after each test the plugin resets every container's test-scoped providers
 ```
 
 **Run under the stock `unittest` runner** (`python -m unittest`) — there is no
@@ -115,7 +116,10 @@ class Test(unittest.TestCase):
         self.addCleanup(Services.reset_test_context)
 ```
 
-You can also reset manually anywhere: `Services.reset_test_context()`.
+Reset is **per container**: `Services.reset_test_context()` resets only that
+container's (own + inherited) `TestContextSingleton` providers — override it to
+customise one container without affecting others. `reset_all_test_contexts()`
+sweeps every container, routing through each one's `reset_test_context()`.
 
 ## Subclassing & whole-container override
 

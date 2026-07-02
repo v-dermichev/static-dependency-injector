@@ -7,12 +7,9 @@ The descriptor's ``__get__`` resolves the dependency on class access; overriding
 is done through the container's ``set_overrides`` (see the containers package).
 """
 from collections.abc import Callable as _Fn
-from typing import Any
+from typing import Any, cast
 
 from dependency_injector import providers
-
-# Providers registered as test-scoped (reset between tests by the pytest plugin).
-_TEST_SCOPED: set[Any] = set()
 
 
 class _ContainerProvider[T](providers.Provider[T]):
@@ -97,60 +94,62 @@ class _TestContextSingleton[T](_ContextLocalSingleton[T]):
 
 
 def Object[T](provides: T, /) -> T:
-    return _Object(provides)  # ty:ignore[invalid-return-type]
+    return cast(T, _Object(provides))
 
 
 def Factory[T](provides: _Fn[..., T], /, *args: Any, **kwargs: Any) -> T:
-    return _Factory(provides, *args, **kwargs)  # ty:ignore[invalid-return-type]
+    return cast(T, _Factory(provides, *args, **kwargs))
 
 
 def Singleton[T](provides: _Fn[..., T], /, *args: Any, **kwargs: Any) -> T:
-    return _Singleton(provides, *args, **kwargs)  # ty:ignore[invalid-return-type]
+    return cast(T, _Singleton(provides, *args, **kwargs))
 
 
 def ThreadSafeSingleton[T](provides: _Fn[..., T], /, *args: Any, **kwargs: Any) -> T:
-    return _ThreadSafeSingleton(provides, *args, **kwargs)  # ty:ignore[invalid-return-type]
+    return cast(T, _ThreadSafeSingleton(provides, *args, **kwargs))
 
 
 def ThreadLocalSingleton[T](provides: _Fn[..., T], /, *args: Any, **kwargs: Any) -> T:
-    return _ThreadLocalSingleton(provides, *args, **kwargs)  # ty:ignore[invalid-return-type]
+    return cast(T, _ThreadLocalSingleton(provides, *args, **kwargs))
 
 
 def ContextLocalSingleton[T](provides: _Fn[..., T], /, *args: Any, **kwargs: Any) -> T:
-    return _ContextLocalSingleton(provides, *args, **kwargs)  # ty:ignore[invalid-return-type]
+    return cast(T, _ContextLocalSingleton(provides, *args, **kwargs))
 
 
 def Callable[T](provides: _Fn[..., T], /, *args: Any, **kwargs: Any) -> T:
-    return _Callable(provides, *args, **kwargs)  # ty:ignore[invalid-return-type]
+    return cast(T, _Callable(provides, *args, **kwargs))
 
 
 def Coroutine[T](provides: _Fn[..., T], /, *args: Any, **kwargs: Any) -> T:
-    return _Coroutine(provides, *args, **kwargs)  # ty:ignore[invalid-return-type]
+    return cast(T, _Coroutine(provides, *args, **kwargs))
 
 
 def Resource[T](provides: _Fn[..., Any], /, *args: Any, **kwargs: Any) -> T:
-    return _Resource(provides, *args, **kwargs)  # ty:ignore[invalid-return-type]
+    return cast(T, _Resource(provides, *args, **kwargs))
 
 
 def Dependency[T](*, instance_of: type[T]) -> T:
-    return _Dependency(instance_of=instance_of)  # ty:ignore[invalid-return-type]
+    return cast(T, _Dependency(instance_of=instance_of))
 
 
+# Selector/Provider have no `provides` parameter, so `T` appears only in the
+# return type and the field annotation supplies it (`x: Foo = Selector(...)` /
+# `x: Foo = Provider()`). mypy/pyright flag that ("TypeVar appears only once");
+# it is intentional and use-site-safe here (ty, the src gate, does not flag it).
 def Selector[T](selector: Any, /, **providers_: Any) -> T:
-    return _Selector(selector, **providers_)  # ty:ignore[invalid-return-type]
+    return cast(T, _Selector(selector, **providers_))
 
 
 def Provider[T]() -> T:
-    return _Provider()  # ty:ignore[invalid-return-type]
+    return cast(T, _Provider())
 
 
 def Container[C](container_cls: type[C], /) -> type[C]:
     """Nest a static container as a provider: ``inner: type[Inner] =
     Container(Inner)`` makes ``Outer.inner.x`` resolve ``Inner.x``."""
-    return _Container(container_cls)  # ty:ignore[invalid-return-type]
+    return cast(type[C], _Container(container_cls))
 
 
 def TestContextSingleton[T](provides: _Fn[..., T], /, *args: Any, **kwargs: Any) -> T:
-    provider = _TestContextSingleton(provides, *args, **kwargs)
-    _TEST_SCOPED.add(provider)
-    return provider  # ty:ignore[invalid-return-type]
+    return cast(T, _TestContextSingleton(provides, *args, **kwargs))

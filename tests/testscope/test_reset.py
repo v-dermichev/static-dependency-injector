@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import itertools
+from typing import override
 
 from static_dependency_injector import _pytest_plugin
 from static_dependency_injector import static_providers as sp
@@ -19,7 +20,7 @@ class TestResetBehaviour:
 
         scoped0, single0 = C.scoped, C.single
         assert C.scoped == scoped0
-        StaticDeclarativeContainer.reset_test_context()
+        C.reset_test_context()
         assert C.scoped != scoped0  # reset -> fresh
         assert C.single == single0  # singleton survives
 
@@ -27,9 +28,9 @@ class TestResetBehaviour:
         class C(StaticDeclarativeContainer):
             scoped: object = sp.TestContextSingleton(object)
 
-        StaticDeclarativeContainer.reset_test_context()
+        C.reset_test_context()
 
-    def test_reset_spans_multiple_containers(self) -> None:
+    def test_reset_is_scoped_to_the_container(self) -> None:
         count_a, count_b = itertools.count(), itertools.count()
 
         class A(StaticDeclarativeContainer):
@@ -39,9 +40,42 @@ class TestResetBehaviour:
             scoped: int = sp.TestContextSingleton(lambda: next(count_b))
 
         a0, b0 = A.scoped, B.scoped
-        StaticDeclarativeContainer.reset_test_context()
+        A.reset_test_context()  # only A
+        assert A.scoped != a0
+        assert B.scoped == b0  # B untouched
+
+    def test_reset_all_spans_every_container(self) -> None:
+        count_a, count_b = itertools.count(), itertools.count()
+
+        class A(StaticDeclarativeContainer):
+            scoped: int = sp.TestContextSingleton(lambda: next(count_a))
+
+        class B(StaticDeclarativeContainer):
+            scoped: int = sp.TestContextSingleton(lambda: next(count_b))
+
+        a0, b0 = A.scoped, B.scoped
+        StaticDeclarativeContainer.reset_all_test_contexts()
         assert A.scoped != a0
         assert B.scoped != b0
+
+    def test_reset_all_honours_per_container_override(self) -> None:
+        count_a, count_b = itertools.count(), itertools.count()
+
+        class Frozen(StaticDeclarativeContainer):
+            scoped: int = sp.TestContextSingleton(lambda: next(count_a))
+
+            @classmethod
+            @override
+            def reset_test_context(cls) -> None:
+                pass  # this container opts out of reset
+
+        class Normal(StaticDeclarativeContainer):
+            scoped: int = sp.TestContextSingleton(lambda: next(count_b))
+
+        frozen0, normal0 = Frozen.scoped, Normal.scoped
+        StaticDeclarativeContainer.reset_all_test_contexts()
+        assert Frozen.scoped == frozen0  # override honoured -> not reset
+        assert Normal.scoped != normal0  # normal container still reset
 
 
 class TestPluginTeardownHook:

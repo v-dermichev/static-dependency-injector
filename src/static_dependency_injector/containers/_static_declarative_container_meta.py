@@ -8,7 +8,13 @@ apply value-overrides to the class providers, returning a restore handle.
 """
 from __future__ import annotations
 
+import weakref
 from typing import TYPE_CHECKING, Any
+
+# Every container class registers here (weak, so test-local containers are GC'd).
+# The global test-context reset routes through each container's own
+# reset_test_context, so a per-container override is honoured.
+_CONTAINERS: weakref.WeakSet[Any] = weakref.WeakSet()
 
 
 class UnannotatedProviderWarning(UserWarning):
@@ -44,6 +50,7 @@ else:
     class StaticDeclarativeContainerMeta(containers.DeclarativeContainerMetaClass):
         def __init__(cls, *args: Any, **kwargs: Any) -> None:  # noqa: N805
             super().__init__(*args, **kwargs)
+            _CONTAINERS.add(cls)
             # A provider needs an annotation somewhere in the MRO to be a typed
             # field (dataclass_transform aggregates fields across bases, like a
             # dataclass); otherwise set_overrides can't see it. Warn per own

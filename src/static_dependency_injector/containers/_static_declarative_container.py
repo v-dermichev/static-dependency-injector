@@ -1,13 +1,14 @@
-from typing import Any, Self, dataclass_transform
+from typing import Any, Self, cast, dataclass_transform
 from typing import override as _override
 
 from dependency_injector import containers
 from typing_extensions import deprecated
 
 from static_dependency_injector.containers._static_declarative_container_meta import (
+    _CONTAINERS,
     StaticDeclarativeContainerMeta,
 )
-from static_dependency_injector.static_providers._container_providers import _TEST_SCOPED
+from static_dependency_injector.static_providers._container_providers import _TestContextSingleton
 
 # init_resources()/shutdown_resources() act on a container *instance*; a static,
 # class-level container has none, so they are deprecated and raise this.
@@ -54,7 +55,7 @@ class _Providers:
     """
 
     def __get__[C](self, _obj: object, owner: type[C]) -> type[C]:
-        return _ProviderGetter(owner)  # ty:ignore[invalid-return-type]
+        return cast(type[C], _ProviderGetter(owner))
 
 
 @dataclass_transform(kw_only_default=True)
@@ -131,7 +132,18 @@ class StaticDeclarativeContainer(
 
     @classmethod
     def reset_test_context(cls) -> None:
-        """Reset every ``TestContextSingleton`` provider, so the next test gets
-        fresh instances. Called by the bundled pytest plugin after each test."""
-        for provider in _TEST_SCOPED:
-            provider.reset()
+        """Reset *this* container's ``TestContextSingleton`` providers (its own and
+        inherited), so the next test gets fresh instances. Override to customise a
+        single container's reset - :meth:`reset_all_test_contexts` (and the bundled
+        plugin) route through this method per container."""
+        for provider in cls.providers.values():
+            if isinstance(provider, _TestContextSingleton):
+                provider.reset()
+
+    @staticmethod
+    def reset_all_test_contexts() -> None:
+        """Reset test-scoped providers for every container, calling each one's
+        :meth:`reset_test_context` (so per-container overrides are honoured). This
+        is what the bundled pytest plugin calls after each test."""
+        for container in list(_CONTAINERS):
+            container.reset_test_context()

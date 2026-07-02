@@ -7,6 +7,10 @@ include breaking changes.
 ## [0.3.2] - 2026-07-01
 
 ### Changed
+- `reset_test_context()` is now **scoped to the container it's called on** (its
+  own + inherited `TestContextSingleton` providers), instead of resetting every
+  test-scoped provider process-wide. Overriding it on one container no longer
+  affects others.
 - `set_overrides` now mirrors dependency_injector's `override()`: a **provider**
   argument (e.g. `set_overrides(logger=Factory(...))`) is used as-is (a `Factory`
   yields a fresh instance each resolve), while a plain **value** is wrapped in
@@ -14,6 +18,9 @@ include breaking changes.
   leaked the provider object instead of resolving through it.
 
 ### Added
+- `reset_all_test_contexts()` — resets test-scoped providers for every container,
+  routing through each container's (possibly overridden) `reset_test_context()`.
+  The bundled pytest plugin calls this after each test.
 - `UnannotatedProviderWarning` — emitted at class creation for a provider
   declared without a type annotation (which typed `set_overrides` can't see).
   Annotations are inherited across the MRO, so redeclaring an already-annotated

@@ -15,6 +15,6 @@ def pytest_runtest_teardown(item: Any) -> None:
     try:
         from static_dependency_injector.containers import StaticDeclarativeContainer
 
-        StaticDeclarativeContainer.reset_test_context()
+        StaticDeclarativeContainer.reset_all_test_contexts()
     except Exception:  # noqa: BLE001
         pass
