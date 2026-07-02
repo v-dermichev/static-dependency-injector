@@ -4,7 +4,7 @@ All notable changes to this project are documented here. This project follows
 [Semantic Versioning](https://semver.org/); while pre-1.0, minor versions may
 include breaking changes.
 
-## [0.3.2] - 2026-07-01
+## [0.3.2] - 2026-07-02
 
 ### Fixed
 - Scoped `set_overrides` now removes on exit *exactly* the override it added
