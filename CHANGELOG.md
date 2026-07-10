@@ -4,7 +4,18 @@ All notable changes to this project are documented here. This project follows
 [Semantic Versioning](https://semver.org/); while pre-1.0, minor versions may
 include breaking changes.
 
-## [0.3.4] - 2026-07-10
+## [0.3.6] - 2026-07-10
+
+### Added
+- `Delegate(provider)` — wire a sibling provider as an on-demand resolver, typed
+  `Callable[[], T]`. Inside a container body a provider is typed as its resolved
+  value (`logger: Logger`), so dependency_injector's own delegation
+  (`logger.provider`) does not type-check. `Delegate(logger)` closes that gap: the
+  consumer receives a callable that resolves the *current* value on each call —
+  for a dependency that must re-resolve (e.g. across a `TestContextSingleton`
+  reset) instead of capturing one instance. Typed clean under ty, mypy and pyright.
+
+## [0.3.5] - 2026-07-10
 
 ### Added
 - `ContextLocalContainer` / `ThreadLocalContainer` / `TestLocalContainer` — scoped
@@ -119,7 +130,8 @@ include breaking changes.
 - Bundled pytest plugin (auto-registered) that resets `TestContextSingleton`
   providers after each test.
 
-[0.3.4]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.3.2...v0.3.4
+[0.3.6]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.3.5...v0.3.6
+[0.3.5]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.3.2...v0.3.5
 [0.3.2]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.2.0...v0.3.1
 [0.2.0]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.1.0...v0.2.0

@@ -153,3 +153,24 @@ def Container[C](container_cls: type[C], /) -> type[C]:
 
 def TestContextSingleton[T](provides: _Fn[..., T], /, *args: Any, **kwargs: Any) -> T:
     return cast(T, _TestContextSingleton(provides, *args, **kwargs))
+
+
+def Delegate[T](provided: T, /) -> _Fn[[], T]:
+    """Wire a sibling provider as an on-demand resolver, typed ``Callable[[], T]``.
+
+    In a container body a provider attribute is typed as its *resolved* value
+    (``logger: Logger``), so dependency_injector's own delegation
+    (``logger.provider``) does not type-check - ``Logger`` has no ``provider``.
+    ``Delegate(logger)`` closes that gap: it accepts the value-typed sibling and
+    returns a ``Callable[[], Logger]`` that resolves the *current* value on each
+    call. Use it when the consumer must re-resolve rather than capture one instance
+    - e.g. depending on a ``TestContextSingleton`` that is reset between tests::
+
+        class Core(StaticDeclarativeContainer):
+            logger: Logger = TestContextSingleton(Logger)
+            waiter: Waiter = ContextLocalSingleton(Waiter, logger_resolver=Delegate(logger))
+
+    At runtime ``provided`` is the provider object; it is delegated so the injected
+    value is the provider itself (callable), not its resolved value.
+    """
+    return cast(_Fn[[], T], providers.Delegate(cast("providers.Provider[Any]", provided)))

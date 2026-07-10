@@ -234,6 +234,33 @@ Base.provider.confg   # ❌ typo — compile-time error
 the resolved value (for reading). For a **dynamic** name, use the underlying
 `Container.providers[name]` (dependency-injector's provider dict).
 
+## On-demand resolvers (`Delegate`)
+
+Wiring a sibling by name injects its **resolved value**, captured once. When a
+consumer must re-resolve the *current* value on each use — e.g. it depends on a
+`TestContextSingleton` that is reset between tests — wire it with `Delegate`, which
+yields a `Callable[[], T]`:
+
+```python
+class Core(StaticDeclarativeContainer):
+    logger: Logger = sp.TestContextSingleton(Logger)
+    waiter: Waiter = sp.ContextLocalSingleton(Waiter, logger_resolver=sp.Delegate(logger))
+    #                                                 ^ typed Callable[[], Logger]
+```
+
+```python
+class Waiter:
+    def __init__(self, logger_resolver: Callable[[], Logger]) -> None:
+        self._logger = logger_resolver          # keep the callable
+    def wait(self) -> None:
+        self._logger().info("waiting…")         # resolves the current logger per use
+```
+
+`Delegate` wraps dependency-injector's delegation. You can't write `logger.provider`
+directly here: inside the body `logger` is typed as `Logger` (its resolved type), so
+`.provider` is a type error — `Delegate(logger)` bridges that, staying clean under
+ty/mypy/pyright.
+
 **Why name the base explicitly?** There is no self-reference inside a class body:
 while the body runs the class does not exist yet, and no type checker models "the
 class being defined" as a value — the class name, `__class__`, and
