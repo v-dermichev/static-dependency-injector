@@ -15,6 +15,11 @@ class _Inner(StaticDeclarativeContainer):
     db: str = sp.Singleton(lambda cfg: f"db({cfg})", cfg=cfg)
 
 
+class _Box(StaticDeclarativeContainer):
+    sing: object = sp.Singleton(object)  # one instance per scope copy
+    fac: object = sp.Factory(object)  # a fresh instance on every access
+
+
 class TestScopedReadsAndOverrides:
     def test_reads_resolve_and_override_is_isolated_from_root(self) -> None:
         class Root(StaticDeclarativeContainer):
@@ -92,3 +97,47 @@ class TestTestLocalContainer:
         Root.reset_test_context()  # end of test
         assert Root.inner.cfg == "real"  # fresh copy for the next test
         assert _Inner.cfg == "real"
+
+
+class TestScopedInstanceIdentity:
+    """Guard the instance-identity contract (not just resolved values): each scope
+    holds its own copy, so a scoped `Singleton` is one instance within a scope and
+    a distinct one in another; a scoped `Factory` is always fresh."""
+
+    def test_context_local_singleton_stable_within_distinct_across(self) -> None:
+        class Root(StaticDeclarativeContainer):
+            box: type[_Box] = sp.ContextLocalContainer(_Box)
+
+        def within() -> tuple[object, object]:
+            return Root.box.sing, Root.box.sing
+
+        a1, a2 = contextvars.copy_context().run(within)
+        b1, b2 = contextvars.copy_context().run(within)
+        assert a1 is a2 and b1 is b2  # stable within a context
+        assert a1 is not b1  # distinct instance in another context
+
+    def test_context_local_factory_fresh_within_a_context(self) -> None:
+        class Root(StaticDeclarativeContainer):
+            box: type[_Box] = sp.ContextLocalContainer(_Box)
+
+        def within() -> tuple[object, object]:
+            return Root.box.fac, Root.box.fac
+
+        f1, f2 = contextvars.copy_context().run(within)
+        assert f1 is not f2  # Factory: a new instance on every access
+
+    def test_thread_local_singleton_distinct_across_threads(self) -> None:
+        class Root(StaticDeclarativeContainer):
+            box: type[_Box] = sp.ThreadLocalContainer(_Box)
+
+        main = Root.box.sing
+        assert Root.box.sing is main  # stable within the main thread
+        seen: dict[str, object] = {}
+
+        def worker() -> None:
+            seen["sing"] = Root.box.sing
+
+        thread = threading.Thread(target=worker)
+        thread.start()
+        thread.join()
+        assert seen["sing"] is not main  # a distinct instance in another thread
