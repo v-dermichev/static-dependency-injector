@@ -18,4 +18,3 @@ build/
 
 # Local-only release helper
 /release.sh
-.env
