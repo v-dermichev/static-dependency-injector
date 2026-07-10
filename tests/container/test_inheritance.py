@@ -15,6 +15,7 @@ class _Cfg:
 
 class _Svc:
     def __init__(self, cfg: _Cfg) -> None:
+        self.cfg = cfg
         self.tag = cfg.tag
 
 
@@ -57,6 +58,21 @@ class TestSubclassing:
 
         assert Child.svc.tag == "child"  # dependent rewired to Child.cfg
         assert Base.svc.tag == "base"  # parent unaffected
+
+    def test_copy_rewiring_shares_the_redeclared_provider_by_identity(self) -> None:
+        # A redeclared Singleton must resolve to the *same* instance the dependent
+        # sees - not a distinct copy with an equal value.
+        class Base(StaticDeclarativeContainer):
+            cfg: _Cfg = sp.Singleton(_Cfg, "base")
+            svc: _Svc = sp.Singleton(_Svc, cfg=cfg)
+
+        @copy(Base)
+        class Child(Base):
+            cfg: _Cfg = sp.Singleton(_Cfg, "child")
+
+        assert Child.svc.cfg is Child.cfg  # dependent and attribute: one instance
+        assert Base.svc.cfg is Base.cfg  # parent still self-consistent
+        assert Child.cfg is not Base.cfg  # and independent from the parent
 
     def test_copy_keeps_the_assignment_guard_strict(self) -> None:
         # The scoped rewiring bypass must not leak: direct assignment is still

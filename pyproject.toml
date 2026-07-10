@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "static-dependency-injector"
-version = "0.3.6"
+version = "0.3.7"
 description = "Static, lazily-resolved declarative DI containers built on dependency-injector."
 readme = "README.md"
 requires-python = ">=3.12"

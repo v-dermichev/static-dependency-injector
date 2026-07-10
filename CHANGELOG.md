@@ -4,6 +4,16 @@ All notable changes to this project are documented here. This project follows
 [Semantic Versioning](https://semver.org/); while pre-1.0, minor versions may
 include breaking changes.
 
+## [0.3.7] - 2026-07-10
+
+### Fixed
+- `copy` rewiring now shares the redeclared provider *by identity*: a redeclared
+  `Singleton` resolves to the same instance the rewired dependent sees, instead of
+  a distinct copy with an equal value. dependency_injector's own `copy` deep-copies
+  the subclass's providers a second time, leaving the attribute and the dependent
+  as two objects (two caches); the wrapper now deep-copies the inherited providers
+  once with a memo onto the redeclared originals and keeps those originals as-is.
+
 ## [0.3.6] - 2026-07-10
 
 ### Added
@@ -130,6 +140,7 @@ include breaking changes.
 - Bundled pytest plugin (auto-registered) that resets `TestContextSingleton`
   providers after each test.
 
+[0.3.7]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.3.6...v0.3.7
 [0.3.6]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.3.5...v0.3.6
 [0.3.5]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.3.2...v0.3.5
 [0.3.2]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.3.1...v0.3.2
