@@ -79,3 +79,4 @@ markers = [
 # Typing case files intentionally contain type errors; exclude from the ty gate.
 [tool.ty.src]
 exclude = ["tests/typing/cases"]
+
