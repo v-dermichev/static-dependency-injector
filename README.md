@@ -177,6 +177,31 @@ class Testing(Base):
 Testing.set_overrides(db=other, extra=frozen)   # typed over inherited + own
 ```
 
+**Redeclaring a dependency does not rewire inherited dependents.** A plain
+subclass that redeclares only a *dependency* leaves an inherited *dependent* wired
+to the original provider (this matches `dependency_injector`'s plain subclassing).
+Use `@copy` to rewire them — it mirrors `dependency_injector`'s `@containers.copy`:
+
+```python
+from static_dependency_injector.containers import copy
+
+class Base(StaticDeclarativeContainer):
+    config: Config = sp.Singleton(Config, "postgres://")
+    db: Database = sp.Singleton(Database, config=config)
+
+class Plain(Base):
+    config: Config = sp.Singleton(Config, "sqlite://")
+Plain.db.config.url        # "postgres://" — dependent NOT rewired
+
+@copy(Base)
+class Testing(Base):
+    config: Config = sp.Singleton(Config, "sqlite://")
+Testing.db.config.url      # "sqlite://" — @copy rewired db to Testing.config
+```
+
+Direct attribute assignment stays rejected (use `set_overrides`); `@copy` opens a
+brief, scoped bypass only for the rewiring it performs.
+
 Override a whole container's providers by name with another container's, undone
 with `reset_override` (both reflected in reads):
 

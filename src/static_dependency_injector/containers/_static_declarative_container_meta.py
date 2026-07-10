@@ -91,10 +91,13 @@ else:
         def __setattr__(cls, name: str, value: Any) -> None:  # noqa: N805
             # `Container.attr = x` would silently clobber the provider; steer to
             # set_overrides (this fires at runtime; type checkers can't see it).
-            try:
-                is_provider = name in cls.providers
-            except Exception:  # noqa: BLE001 - providers not ready during creation
-                is_provider = False
-            if is_provider:
-                raise AttributeError(f"assign via {cls.__name__}.set_overrides({name}=...)")
+            # The `copy` decorator opens `_sdi_rewiring` briefly to rewire
+            # redeclared dependencies into inherited dependents.
+            if not cls.__dict__.get("_sdi_rewiring", False):
+                try:
+                    is_provider = name in cls.providers
+                except Exception:  # noqa: BLE001 - providers not ready during creation
+                    is_provider = False
+                if is_provider:
+                    raise AttributeError(f"assign via {cls.__name__}.set_overrides({name}=...)")
             super().__setattr__(name, value)

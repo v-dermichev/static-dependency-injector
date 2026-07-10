@@ -4,7 +4,7 @@ All notable changes to this project are documented here. This project follows
 [Semantic Versioning](https://semver.org/); while pre-1.0, minor versions may
 include breaking changes.
 
-## [0.3.3] - 2026-07-02
+## [0.3.4] - 2026-07-10
 
 ### Added
 - `ContextLocalContainer` / `ThreadLocalContainer` / `TestLocalContainer` — scoped
@@ -16,6 +16,12 @@ include breaking changes.
 - `reset_all_test_contexts()` — resets test-scoped providers for every container,
   routing through each container's (possibly overridden) `reset_test_context()`.
   The bundled pytest plugin calls this after each test.
+- `copy` — a decorator mirroring `dependency_injector`'s `@containers.copy`. On a
+  subclass it rewires redeclared dependencies into their inherited dependents (a
+  plain subclass keeps dependents wired to the original providers). The assignment
+  guard stays strict — direct provider assignment is still rejected — because the
+  decorator opens only a brief, scoped bypass for the rewiring it performs. Typed
+  clean under ty, mypy and pyright.
 
 ### Changed
 - `reset_test_context()` is now **scoped to the container it's called on** (its
@@ -113,7 +119,7 @@ include breaking changes.
 - Bundled pytest plugin (auto-registered) that resets `TestContextSingleton`
   providers after each test.
 
-[0.3.3]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.3.2...v0.3.3
+[0.3.4]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.3.2...v0.3.4
 [0.3.2]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.2.0...v0.3.1
 [0.2.0]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.1.0...v0.2.0
