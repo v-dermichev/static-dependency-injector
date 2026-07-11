@@ -4,7 +4,7 @@ All notable changes to this project are documented here. This project follows
 [Semantic Versioning](https://semver.org/); while pre-1.0, minor versions may
 include breaking changes.
 
-## [0.3.7] - 2026-07-10
+## [0.3.8] - 2026-07-10
 
 ### Added
 - `static_dependency_injector.testing.TestContext` — framework-neutral (pytest and
@@ -17,6 +17,8 @@ include breaking changes.
 - The bundled pytest plugin now activates the context per test (and captures the
   session at startup) in addition to resetting test-scoped providers. For unittest,
   wrap the test with `TestContext.scope(self)`.
+
+## [0.3.7] - 2026-07-10
 
 ### Fixed
 - `copy` rewiring now shares the redeclared provider *by identity*: a redeclared
@@ -152,6 +154,7 @@ include breaking changes.
 - Bundled pytest plugin (auto-registered) that resets `TestContextSingleton`
   providers after each test.
 
+[0.3.8]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.3.7...v0.3.8
 [0.3.7]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.3.6...v0.3.7
 [0.3.6]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.3.5...v0.3.6
 [0.3.5]: https://github.com/v-dermichev/static-dependency-injector/compare/v0.3.2...v0.3.5
