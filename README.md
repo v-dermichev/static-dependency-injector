@@ -162,6 +162,64 @@ container's (own + inherited) `TestContextSingleton` providers — override it t
 customise one container without affecting others. `reset_all_test_contexts()`
 sweeps every container, routing through each one's `reset_test_context()`.
 
+## Test context (metadata, hooks, session info)
+
+`static_dependency_injector.testing.TestContext` exposes *which* test is running
+and per-run session info — framework-neutrally (pytest **and** `unittest`):
+
+```python
+from static_dependency_injector.testing import TestContext, CurrentTest, TestInfo
+
+TestContext.is_active()      # True inside a test
+TestContext.current          # TestInfo(id, name, module, cls, file, params, markers, framework, raw)
+TestContext.current.name     # e.g. "test_login"
+TestContext.work_dir         # per-run session info: rootdir / cwd
+TestContext.run_id           # unique id for this run
+TestContext.started_at       # timezone-aware datetime
+```
+
+`TestContext.current` **raises** `NoActiveTestError` outside a test — guard with
+`TestContext.is_active()`. Depend on it from a provider with `CurrentTest()`
+(resolves to the active `TestInfo` on each access; wrap in `Delegate` for a lazy
+`Callable[[], TestInfo]`):
+
+```python
+class Services(StaticDeclarativeContainer):
+    test: TestInfo = CurrentTest()
+
+Services.test.name           # the running test's name
+```
+
+React to test boundaries with hooks (usable as decorators). `on_exit` fires
+*before* test-scoped providers are reset:
+
+```python
+@TestContext.on_enter
+def seed(info: TestInfo) -> None:
+    ...   # e.g. tag resources with info.id
+```
+
+**pytest**: activation is automatic (the bundled plugin sets the context in setup,
+clears it in teardown). **unittest** (stock runner): wrap the test with
+`TestContext.scope(self)`:
+
+```python
+class Test(unittest.TestCase):
+    def setUp(self) -> None:
+        cm = TestContext.scope(self)
+        cm.__enter__()
+        self.addCleanup(cm.__exit__, None, None, None)   # also resets test-scoped providers
+```
+
+The current test is stored in a `contextvars.ContextVar`, so it composes with
+`ContextLocalSingleton` / `TestContextSingleton`. A thread spawned inside a test
+does **not** inherit it automatically — capture the context and run within it:
+
+```python
+ctx = contextvars.copy_context()
+threading.Thread(target=lambda: ctx.run(work)).start()   # sees TestContext.current
+```
+
 ## Subclassing & whole-container override
 
 Subclass a container to inherit its providers, and redeclare any to replace them:

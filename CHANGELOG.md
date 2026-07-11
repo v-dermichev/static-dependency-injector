@@ -6,6 +6,18 @@ include breaking changes.
 
 ## [0.3.7] - 2026-07-10
 
+### Added
+- `static_dependency_injector.testing.TestContext` — framework-neutral (pytest and
+  `unittest`) access to the current test and per-run session info: `current`
+  (a `TestInfo` with id / name / module / cls / file / params / markers / framework
+  / raw; raises `NoActiveTestError` outside a test — guard with `is_active()`),
+  `work_dir` / `run_id` / `started_at`, and `on_enter` / `on_exit` hooks.
+- `CurrentTest()` — a provider resolving to `TestContext.current`, so a factory can
+  depend on the active test (`test: TestInfo = CurrentTest()`).
+- The bundled pytest plugin now activates the context per test (and captures the
+  session at startup) in addition to resetting test-scoped providers. For unittest,
+  wrap the test with `TestContext.scope(self)`.
+
 ### Fixed
 - `copy` rewiring now shares the redeclared provider *by identity*: a redeclared
   `Singleton` resolves to the same instance the rewired dependent sees, instead of

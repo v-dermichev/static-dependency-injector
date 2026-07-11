@@ -31,6 +31,7 @@ _EXPECT: dict[str, dict[str, str]] = {
     "provider_wiring": {"ty": "clean", "mypy": "clean", "pyright": "clean"},
     "copy_rewire": {"ty": "clean", "mypy": "clean", "pyright": "clean"},
     "delegate": {"ty": "clean", "mypy": "clean", "pyright": "clean"},
+    "testcontext": {"ty": "clean", "mypy": "clean", "pyright": "clean"},
     "scoped_container": {"ty": "clean", "mypy": "clean", "pyright": "clean"},
     "read_wrong_type": {"ty": "error", "mypy": "error", "pyright": "error"},
     "override_errors": {"ty": "error", "mypy": "error", "pyright": "error"},

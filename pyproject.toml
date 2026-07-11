@@ -74,6 +74,7 @@ select = ["E", "W", "F", "I", "N"]
 addopts = ["--import-mode=importlib"]
 markers = [
     "typing: type-checker behavior tests (run ty / mypy / pyright on case files)",
+    "slow: example marker used by the TestContext marker-capture test",
 ]
 
 # Typing case files intentionally contain type errors; exclude from the ty gate.
