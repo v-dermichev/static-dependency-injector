@@ -11,6 +11,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 
 def pytest_configure(config: Any) -> None:
     # Record per-run session info (work_dir from the rootdir). Never fail startup.
@@ -22,8 +24,10 @@ def pytest_configure(config: Any) -> None:
         pass
 
 
+@pytest.hookimpl(tryfirst=True)
 def pytest_runtest_setup(item: Any) -> None:
     # Activate the current test so TestContext.current / CurrentTest() resolve.
+    # `tryfirst`: enter BEFORE any fixture setup, so fixtures can read CurrentTest().
     try:
         from static_dependency_injector.testing import TestContext
 
@@ -32,9 +36,17 @@ def pytest_runtest_setup(item: Any) -> None:
         pass
 
 
+@pytest.hookimpl(trylast=True)
 def pytest_runtest_teardown(item: Any) -> None:
     # Fire on_exit hooks, clear the active test, and reset test-scoped providers.
     # Lazy import keeps plugin load cheap; failures here must never fail the run.
+    #
+    # `trylast`: reset AFTER all fixture finalizers. Fixture teardowns commonly
+    # touch a test-scoped provider to release its resource (e.g. `svc = X.driver`
+    # in setup, `X.driver.quit()` in teardown). If we reset first, that access
+    # rebuilds a fresh instance mid-teardown - for a real resource (WebDriver /
+    # Appium session) that means a new session and a hang. Resetting last lets
+    # teardowns see the same instance they set up.
     try:
         from static_dependency_injector.testing import TestContext
 

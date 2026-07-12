@@ -4,6 +4,20 @@ All notable changes to this project are documented here. This project follows
 [Semantic Versioning](https://semver.org/); while pre-1.0, minor versions may
 include breaking changes.
 
+## [0.3.9] - 2026-07-11
+
+### Fixed
+- The bundled pytest plugin now resets test-scoped (`TestContextSingleton`)
+  providers **after** fixture finalizers, not before (`trylast` on
+  `pytest_runtest_teardown`; and `tryfirst` on `pytest_runtest_setup` so the
+  context is entered before fixtures too). A fixture that captures a test-scoped
+  resource in setup and releases it in teardown — the common `svc = X.driver` /
+  `svc.quit()` pattern — previously hit the reset *between* the two: re-reading
+  the provider in teardown rebuilt a fresh instance, which for a real resource
+  (a WebDriver / Appium session) meant a brand-new session and a hang. The reset
+  is now deferred until all finalizers have run, so teardowns see the same
+  instance they set up.
+
 ## [0.3.8] - 2026-07-10
 
 ### Added

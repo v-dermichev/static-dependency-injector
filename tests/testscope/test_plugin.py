@@ -38,6 +38,50 @@ class TestPluginAutoRegistration:
         result = pytester.runpytest_inprocess("-p", "no:cacheprovider")
         result.assert_outcomes(passed=2)
 
+    def test_reset_runs_after_fixture_finalizers(self, pytester: pytest.Pytester) -> None:
+        """Reset must happen AFTER fixture teardowns, not before.
+
+        Fixtures commonly capture a test-scoped provider in setup and release it
+        in teardown (``svc = X.driver`` / ``svc.quit()``). If the plugin reset
+        ran first, re-reading the provider in teardown would rebuild a fresh
+        instance mid-teardown - for a real resource (WebDriver / Appium session)
+        that means a brand-new session and a hang.
+        """
+        pytester.makepyfile(
+            """
+            import itertools
+
+            import pytest
+
+            from static_dependency_injector import static_providers as sp
+            from static_dependency_injector.containers import StaticDeclarativeContainer
+
+            _counter = itertools.count()
+
+
+            class Services(StaticDeclarativeContainer):
+                scoped: int = sp.TestContextSingleton(lambda: next(_counter))
+
+
+            @pytest.fixture(autouse=True)
+            def fx():
+                built = Services.scoped        # setup: build the instance
+                yield
+                # teardown: must see the SAME instance (reset is deferred to
+                # after fixture finalizers). A rebuild here would be a new value.
+                assert Services.scoped == built, (
+                    "test-scoped provider was reset BEFORE the fixture teardown "
+                    "(re-access rebuilt it)"
+                )
+
+
+            def test_ok():
+                pass
+            """,
+        )
+        result = pytester.runpytest_inprocess("-p", "no:cacheprovider")
+        result.assert_outcomes(passed=1)
+
     def test_opt_out_disables_reset(self, pytester: pytest.Pytester) -> None:
         pytester.makepyfile(
             """
